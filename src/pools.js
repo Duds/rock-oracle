@@ -1,4 +1,4 @@
-// Eastern Australian man-made ocean pools and coastal baths
+// Eastern Australian ocean pools, coastal baths, and natural rock pools
 // Organised north to south within each state: QLD → NSW → VIC
 //
 // onshoreWind: wind direction range (degrees) that pushes bluebottles toward this pool
@@ -7,6 +7,11 @@
 //   South-facing:     { min: 90,  max: 270 }   E  → W
 //   NE-facing:        { min: 158, max: 338 }   SE → NW
 //   Harbour/protected:{ min: 0,   max: 0   }   never onshore (no open swell)
+//
+// natural: true         = natural rock formation (not constructed)
+// tideDependent: true   = only accessible/safe within ~2hrs of low tide
+// tideDependent: 'high' = best at or near high tide (fills from surf)
+// swellLimit: metres    = max safe swell height (e.g. 1.7 per NSW NP guidelines)
 
 export const POOLS = [
   // ── QUEENSLAND ──────────────────────────────────────────────
@@ -31,6 +36,19 @@ export const POOLS = [
     hasLifeguard: true,
   },
   {
+    id: 'noosa-fairy-pools',
+    name: 'Noosa Fairy Pools',
+    suburb: 'Noosa Heads',
+    state: 'QLD',
+    lat: -26.3930, lon: 153.0910,
+    timezone: 'Australia/Brisbane',
+    onshoreWind: { min: 22, max: 158 },
+    hasLifeguard: false,
+    natural: true,
+    tideDependent: true,
+    swellLimit: 1.0,
+  },
+  {
     id: 'kings-beach-pool',
     name: 'Kings Beach Ocean Pool',
     suburb: 'Caloundra',
@@ -53,6 +71,18 @@ export const POOLS = [
 
   // ── NEW SOUTH WALES — North to South ────────────────────────
   {
+    id: 'angourie-blue-pool',
+    name: 'Angourie Blue Pool',
+    suburb: 'Angourie',
+    state: 'NSW',
+    lat: -29.4790, lon: 153.3600,
+    timezone: 'Australia/Sydney',
+    onshoreWind: { min: 22, max: 158 },
+    hasLifeguard: false,
+    natural: true,
+    tideDependent: false,   // spring-fed permanent pool; adjacent tidal lagoon fills at high tide
+  },
+  {
     id: 'sawtell-pool',
     name: 'Sawtell Memorial Rockpool',
     suburb: 'Sawtell',
@@ -61,6 +91,19 @@ export const POOLS = [
     timezone: 'Australia/Sydney',
     onshoreWind: { min: 22, max: 158 },
     hasLifeguard: false,
+  },
+  {
+    id: 'forster-fairy-pool',
+    name: 'Forster Fairy Pool',
+    suburb: 'Forster',
+    state: 'NSW',
+    lat: -32.1550, lon: 152.5350,
+    timezone: 'Australia/Sydney',
+    onshoreWind: { min: 22, max: 158 },
+    hasLifeguard: false,
+    natural: true,
+    tideDependent: true,
+    swellLimit: 1.5,
   },
   {
     id: 'forster-ocean-baths',
@@ -383,6 +426,31 @@ export const POOLS = [
     hasLifeguard: false,
   },
   {
+    id: 'wattamolla-lagoon',
+    name: 'Wattamolla Lagoon',
+    suburb: 'Royal National Park',
+    state: 'NSW',
+    lat: -34.1370, lon: 151.1160,
+    timezone: 'Australia/Sydney',
+    onshoreWind: { min: 90, max: 225 },
+    hasLifeguard: false,
+    natural: true,
+    tideDependent: false,   // protected lagoon — generally swimmable at most tides
+  },
+  {
+    id: 'figure-eight-pools',
+    name: 'Figure Eight Pools',
+    suburb: 'Royal National Park',
+    state: 'NSW',
+    lat: -34.1756, lon: 151.0506,
+    timezone: 'Australia/Sydney',
+    onshoreWind: { min: 90, max: 225 },
+    hasLifeguard: false,
+    natural: true,
+    tideDependent: true,
+    swellLimit: 1.7,        // NSW National Parks safety guideline
+  },
+  {
     id: 'stanwell-park-pool',
     name: 'Stanwell Park Rockpool',
     suburb: 'Stanwell Park',
@@ -563,6 +631,43 @@ export const POOLS = [
     hasLifeguard: false,
   },
   {
+    id: 'campbells-hole',
+    name: "Campbell's Hole",
+    suburb: 'Gerringong',
+    state: 'NSW',
+    lat: -34.7110, lon: 150.8510,
+    timezone: 'Australia/Sydney',
+    onshoreWind: { min: 22, max: 158 },
+    hasLifeguard: false,
+    natural: true,
+    tideDependent: true,
+    swellLimit: 1.5,
+  },
+  {
+    id: 'mermaid-pool-berrara',
+    name: 'Mermaid Pool',
+    suburb: 'Berrara',
+    state: 'NSW',
+    lat: -35.2160, lon: 150.5530,
+    timezone: 'Australia/Sydney',
+    onshoreWind: { min: 22, max: 158 },
+    hasLifeguard: false,
+    natural: true,
+    tideDependent: true,
+  },
+  {
+    id: 'bogey-hole-mollymook',
+    name: 'Bogey Hole',
+    suburb: 'Mollymook',
+    state: 'NSW',
+    lat: -35.3430, lon: 150.4780,
+    timezone: 'Australia/Sydney',
+    onshoreWind: { min: 22, max: 158 },
+    hasLifeguard: false,
+    natural: true,
+    tideDependent: 'high',   // fills from surf — best near high tide
+  },
+  {
     id: 'bermagui-blue-pool',
     name: 'Bermagui Blue Pool',
     suburb: 'Bermagui',
@@ -605,6 +710,19 @@ export const POOLS = [
     hasLifeguard: false,
   },
   {
+    id: 'sorrento-back-beach-pools',
+    name: 'Sorrento Back Beach Pools',
+    suburb: 'Sorrento',
+    state: 'VIC',
+    lat: -38.3460, lon: 144.7270,
+    timezone: 'Australia/Melbourne',
+    onshoreWind: { min: 90, max: 270 },
+    hasLifeguard: false,
+    natural: true,
+    tideDependent: true,
+    swellLimit: 1.2,
+  },
+  {
     id: 'cape-paterson-pool',
     name: 'Cape Paterson Ocean Pool',
     suburb: 'Cape Paterson',
@@ -613,6 +731,19 @@ export const POOLS = [
     timezone: 'Australia/Melbourne',
     onshoreWind: { min: 90, max: 270 },
     hasLifeguard: false,
+  },
+  {
+    id: 'cairns-bay-rock-pools',
+    name: 'Cairns Bay Rock Pools',
+    suburb: 'Flinders',
+    state: 'VIC',
+    lat: -38.4950, lon: 144.8300,
+    timezone: 'Australia/Melbourne',
+    onshoreWind: { min: 90, max: 270 },
+    hasLifeguard: false,
+    natural: true,
+    tideDependent: true,
+    swellLimit: 1.2,
   },
   {
     id: 'lorne-sea-baths',

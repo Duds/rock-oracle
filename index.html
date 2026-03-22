@@ -89,6 +89,8 @@ header{text-align:center;padding:28px 16px 12px;border-bottom:4px solid var(--cy
 .alert-uv{color:var(--or);border-color:var(--or);background:rgba(255,140,0,.1);}
 .alert-bb{color:var(--pk);border-color:var(--pk);background:rgba(255,110,180,.1);}
 .alert-err{color:var(--or);border-color:var(--or);background:rgba(255,140,0,.1);}
+.alert-tide{color:var(--cy);border-color:var(--cy);background:rgba(0,229,255,.08);}
+.alert-swell{color:var(--rd);border-color:var(--rd);background:rgba(255,48,96,.1);}
 
 /* SEARCH / POOL SELECTOR */
 .search-panel{display:none;position:fixed;inset:0;background:var(--dk);z-index:500;overflow-y:auto;padding:16px;box-sizing:border-box;}
@@ -105,6 +107,8 @@ header{text-align:center;padding:28px 16px 12px;border-bottom:4px solid var(--cy
 .pool-row .pr-name{flex:1;font-size:6px;color:var(--wh);line-height:1.8;}
 .pool-row .pr-loc{font-size:5px;color:var(--gr);flex-shrink:0;text-align:right;line-height:1.8;}
 .pool-row .pr-badge{font-size:5px;color:var(--gn);flex-shrink:0;border:1px solid var(--gn);padding:1px 4px;}
+.pool-row .pr-badge.natural{color:var(--cy);border-color:var(--cy);}
+.pool-row .pr-badge.tide{color:var(--or);border-color:var(--or);}
 #fav-section{display:none;}
 #fav-section.has-favs{display:block;}
 
@@ -185,6 +189,8 @@ footer{text-align:center;padding:14px;border-top:4px solid var(--cy);font-size:5
     <div id="alert-uv" class="alert-banner alert-uv">☀️ UV ALERT: High UV index detected — apply SPF50+ before heading out</div>
     <div id="alert-bb" class="alert-banner alert-bb">🪼 BLUEBOTTLE RISK: Onshore winds detected — check conditions before entering water</div>
     <div id="alert-err" class="alert-banner alert-err">⚠ LIVE DATA UNAVAILABLE — showing seasonal estimate. Check your connection.</div>
+    <div id="alert-tide" class="alert-banner alert-tide">⏱ NATURAL POOL — Best visited within 2hrs of low tide. Check tide times before heading out.</div>
+    <div id="alert-swell" class="alert-banner alert-swell">🚫 SWELL TOO HIGH — This natural pool is dangerous in current conditions. Do not enter.</div>
 
     <div class="two">
       <!-- SCORE -->
@@ -427,7 +433,15 @@ function renderSearchList(query) {
     row.appendChild(favBtn);
     row.appendChild(name);
     row.appendChild(loc);
-    if (p.hasLifeguard) {
+    if (p.natural) {
+      const badge = document.createElement('div');
+      badge.className = 'pr-badge natural';
+      badge.textContent = p.tideDependent ? '⏱ TIDE' : '⛰ NATURAL';
+      badge.title = p.tideDependent === true  ? 'Best within 2hrs of low tide' :
+                    p.tideDependent === 'high' ? 'Best near high tide' :
+                    'Natural rock pool';
+      row.appendChild(badge);
+    } else if (p.hasLifeguard) {
       const badge = document.createElement('div');
       badge.className = 'pr-badge';
       badge.textContent = 'LG';
@@ -593,19 +607,30 @@ function drawTide(curHour) {
 }
 
 const VERDICTS = {
-  epic:  ["{pool} is absolutely mint right now. Tell your Nana.","THIS IS THE ONE. Drop everything. Go now.","LEGENDARY CONDITIONS. Don't waste it.","10/10 NO NOTES. Your towel is already there in spirit."],
-  great: ["Yeah nah, it's actually a yes. Get in.","Pretty bloody good. Mild regret if you skip.","{pool} is calling. She says bring sunscreen.","Solid swim. You'll be chuffed."],
-  ok:    ["Could be worse. Could be Bondi.","3 out of 5 crabs. Technically swimmable.","Meh. Fine. You've swum in worse.","{pool} will accept you. Reluctantly."],
-  ok_bondi: ["You're AT Bondi. We're so sorry.","3 out of 5 crabs. Technically swimmable.","Meh. Fine. You've swum in worse.","Bold choice. Brave. Foolish. Bold."],
-  meh:   ["Look, you COULD go. We wouldn't recommend it.","Giving 'haunted aquarium' energy today.","Two stars. Would not swell again.","This is how you end up with a mouthful of seaweed."],
-  nope:  ["Hard no. The ocean is in its villain era.","STAY HOME. Watch Planet Earth. Same vibes.","Not today, legend. Not today.","The waves have filed a restraining order."],
+  epic:        ["{pool} is absolutely mint right now. Tell your Nana.","THIS IS THE ONE. Drop everything. Go now.","LEGENDARY CONDITIONS. Don't waste it.","10/10 NO NOTES. Your towel is already there in spirit."],
+  great:       ["Yeah nah, it's actually a yes. Get in.","Pretty bloody good. Mild regret if you skip.","{pool} is calling. She says bring sunscreen.","Solid swim. You'll be chuffed."],
+  ok:          ["Could be worse. Could be Bondi.","3 out of 5 crabs. Technically swimmable.","Meh. Fine. You've swum in worse.","{pool} will accept you. Reluctantly."],
+  ok_bondi:    ["You're AT Bondi. We're so sorry.","3 out of 5 crabs. Technically swimmable.","Meh. Fine. You've swum in worse.","Bold choice. Brave. Foolish. Bold."],
+  meh:         ["Look, you COULD go. We wouldn't recommend it.","Giving 'haunted aquarium' energy today.","Two stars. Would not swell again.","This is how you end up with a mouthful of seaweed."],
+  nope:        ["Hard no. The ocean is in its villain era.","STAY HOME. Watch Planet Earth. Same vibes.","Not today, legend. Not today.","The waves have filed a restraining order."],
+  // Natural pool — swell too high
+  nope_swell:  ["Swell is up. {pool} is on a go-slow today. Respect it.","Nature made it. Nature's calling it. Try tomorrow.","The ocean's reclaimed {pool} for the day. She'll be right.","Dangerous swell at {pool}. Hard no. Come back at low tide with small surf."],
+  // Natural pool — wrong tide
+  nope_tide:   ["Tide's not right for {pool}. Worth the wait though.","High tide's had {pool} for now. Check again in a few hours.","Wrong tide for {pool}. Pop the kettle on and check the tide chart.","Nature's timing, not ours. {pool} will be ace when the tide drops."],
+  // Natural pool — epic low tide calm conditions
+  epic_natural:["{pool} at low tide and glassy? You've earned this one.","THIS is why you hiked to {pool}. Conditions are perfect.","The rock gods have aligned. {pool} is magic right now.","Low swell, right tide. {pool} is exactly what it was carved for."],
 };
 function getVerdict(n) {
-  const atBondi = currentPool && currentPool.id === 'bondi-icebergs';
-  const k = n>=85?'epic':n>=70?'great':n>=55?(atBondi?'ok_bondi':'ok'):n>=40?'meh':'nope';
+  const atBondi  = currentPool && currentPool.id === 'bondi-icebergs';
+  const isNatural = currentPool && currentPool.natural;
+  let k;
+  if (n <= 12 && isNatural && currentPool.swellLimit) k = 'nope_swell';
+  else if (n <= 28 && isNatural && currentPool.tideDependent) k = 'nope_tide';
+  else if (n >= 85 && isNatural) k = 'epic_natural';
+  else k = n>=85?'epic':n>=70?'great':n>=55?(atBondi?'ok_bondi':'ok'):n>=40?'meh':'nope';
   const p = VERDICTS[k];
   const v = p[Math.floor(Math.random()*p.length)];
-  return v.replace('{pool}', currentPool ? currentPool.name : 'The pool');
+  return v.replace(/{pool}/g, currentPool ? currentPool.name : 'The pool');
 }
 
 // ── FALLBACK ─────────────────────────────────────────────────
@@ -721,7 +746,17 @@ function animNum(elem, to, dur) {
 }
 
 function render(d) {
-  const {total, bk} = calcScore(d);
+  let {total, bk} = calcScore(d);
+
+  // Natural pool overrides — swell and tide penalties
+  if (currentPool && currentPool.natural) {
+    const swellDanger = currentPool.swellLimit && d.wh > currentPool.swellLimit;
+    const tideBad = currentPool.tideDependent === true  && tideAt(d.h) > 0.85 ||
+                    currentPool.tideDependent === 'high' && tideAt(d.h) < 0.25;
+    if (swellDanger) total = Math.min(total, 12);
+    else if (tideBad) total = Math.min(total, 28);
+  }
+
   const g   = getGrade(total);
   const v   = getVerdict(total);
   const syd = d.syd instanceof Date ? d.syd : new Date(d.syd);
@@ -733,10 +768,26 @@ function render(d) {
   const bb     = bluebottleRisk(d.windDir, d.wind, currentPool.onshoreWind);
 
   // Alert banners
-  const uvAlert = el('alert-uv');
-  const bbAlert = el('alert-bb');
+  const uvAlert    = el('alert-uv');
+  const bbAlert    = el('alert-bb');
+  const tideAlert  = el('alert-tide');
+  const swellAlert = el('alert-swell');
   if (uvAlert) { uvAlert.className = 'alert-banner alert-uv' + (uv >= 6 ? ' show' : ''); }
   if (bbAlert) { bbAlert.className = 'alert-banner alert-bb' + (bb.risk >= 2 ? ' show' : ''); }
+  if (tideAlert) {
+    const showTide = currentPool && currentPool.natural && currentPool.tideDependent &&
+                     !(currentPool.swellLimit && d.wh > currentPool.swellLimit);
+    tideAlert.className = 'alert-banner alert-tide' + (showTide ? ' show' : '');
+    if (showTide && currentPool.tideDependent === 'high') {
+      tideAlert.textContent = '⏱ NATURAL POOL — This one fills from the surf. Best near high tide.';
+    } else if (showTide) {
+      tideAlert.textContent = '⏱ NATURAL POOL — Best within 2hrs of low tide. Check tide times before heading out.';
+    }
+  }
+  if (swellAlert) {
+    const showSwell = currentPool && currentPool.natural && currentPool.swellLimit && d.wh > currentPool.swellLimit;
+    swellAlert.className = 'alert-banner alert-swell' + (showSwell ? ' show' : '');
+  }
 
   // Score panel
   set('semo', g.e);
