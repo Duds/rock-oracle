@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background -->
+  <rect width="512" height="512" fill="#0a0e2e" rx="80"/>
+  <!-- Pixel wave bars (retro style matching the app) -->
+  <rect x="72"  y="248" width="44" height="96"  fill="#00e5ff"/>
+  <rect x="128" y="208" width="44" height="136" fill="#00e5ff"/>
+  <rect x="184" y="168" width="44" height="176" fill="#00e5ff"/>
+  <rect x="240" y="192" width="44" height="152" fill="#00e5ff"/>
+  <rect x="296" y="152" width="44" height="192" fill="#00e5ff"/>
+  <rect x="352" y="192" width="44" height="152" fill="#00e5ff"/>
+  <rect x="408" y="240" width="44" height="104" fill="#00e5ff"/>
+  <!-- Water line -->
+  <rect x="72" y="352" width="380" height="6" fill="#1a3a7a"/>
+  <!-- MAHON text (pixel blocks) -->
+  <!-- M -->
+  <rect x="72"  y="374" width="10" height="50" fill="#ffe600"/>
+  <rect x="82"  y="374" width="10" height="18" fill="#ffe600"/>
+  <rect x="92"  y="384" width="10" height="10" fill="#ffe600"/>
+  <rect x="102" y="374" width="10" height="18" fill="#ffe600"/>
+  <rect x="112" y="374" width="10" height="50" fill="#ffe600"/>
+  <!-- A -->
+  <rect x="130" y="374" width="10" height="50" fill="#ffe600"/>
+  <rect x="140" y="374" width="20" height="10" fill="#ffe600"/>
+  <rect x="140" y="396" width="20" height="10" fill="#ffe600"/>
+  <rect x="160" y="374" width="10" height="50" fill="#ffe600"/>
+  <!-- H -->
+  <rect x="180" y="374" width="10" height="50" fill="#ffe600"/>
+  <rect x="190" y="396" width="14" height="10" fill="#ffe600"/>
+  <rect x="204" y="374" width="10" height="50" fill="#ffe600"/>
+  <!-- O -->
+  <rect x="222" y="374" width="10" height="50" fill="#ffe600"/>
+  <rect x="232" y="374" width="20" height="10" fill="#ffe600"/>
+  <rect x="232" y="414" width="20" height="10" fill="#ffe600"/>
+  <rect x="252" y="374" width="10" height="50" fill="#ffe600"/>
+  <!-- N -->
+  <rect x="270" y="374" width="10" height="50" fill="#ffe600"/>
+  <rect x="280" y="384" width="10" height="10" fill="#ffe600"/>
+  <rect x="290" y="396" width="10" height="10" fill="#ffe600"/>
+  <rect x="300" y="374" width="10" height="50" fill="#ffe600"/>
+</svg>

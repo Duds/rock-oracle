@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ROCK ORACLE</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#00e5ff">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ORACLE">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css" crossorigin=""/>
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js" crossorigin=""></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+:root {
+  --dk:#0a0e2e; --md:#0d1f4f; --bl:#1a3a7a;
+  --cy:#00e5ff; --gn:#00ff88; --yw:#ffe600;
+  --rd:#ff3060; --or:#ff8c00; --pk:#ff6eb4;
+  --wh:#e8f4ff; --gr:#4a5568;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--dk);color:var(--wh);font-family:'Press Start 2P',monospace;font-size:8px;line-height:1.8;overflow-x:hidden;}
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,rgba(0,0,0,.09) 0,rgba(0,0,0,.09) 1px,transparent 1px,transparent 3px);pointer-events:none;z-index:9999;}
+
+#loader{position:fixed;inset:0;background:var(--dk);z-index:1000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;transition:opacity .5s;}
+.ltitle{font-size:10px;color:var(--cy);animation:flk 1.5s infinite;}
+.ltrack{width:200px;height:16px;border:4px solid var(--cy);background:var(--dk);overflow:hidden;}
+#lb{height:100%;background:var(--cy);width:0%;transition:width .25s;}
+#lm{font-size:6px;color:var(--gr);text-align:center;max-width:260px;line-height:2;}
+
+#app{opacity:0;transition:opacity .5s;}
+header{text-align:center;padding:28px 16px 12px;border-bottom:4px solid var(--cy);background:linear-gradient(180deg,var(--dk),var(--md));}
+.waves{display:flex;justify-content:center;gap:4px;margin-bottom:14px;}
+.wave{width:8px;height:8px;background:var(--cy);animation:wb .6s ease-in-out infinite;}
+.wave:nth-child(2n){background:var(--bl);}
+.wave:nth-child(1){animation-delay:0s}.wave:nth-child(2){animation-delay:.1s}.wave:nth-child(3){animation-delay:.2s}
+.wave:nth-child(4){animation-delay:.3s}.wave:nth-child(5){animation-delay:.4s}.wave:nth-child(6){animation-delay:.5s}
+.wave:nth-child(7){animation-delay:.6s}.wave:nth-child(8){animation-delay:.7s}.wave:nth-child(9){animation-delay:.8s}.wave:nth-child(10){animation-delay:.9s}
+@keyframes wb{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@keyframes flk{0%,95%,100%{opacity:1}96%{opacity:.6}97%{opacity:1}98.5%{opacity:.4}}
+@keyframes blk{50%{opacity:0}}
+@keyframes pb{from{opacity:.7}to{opacity:1;filter:brightness(1.3)}}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05);}}
+.t1{font-size:clamp(11px,2.8vw,20px);color:var(--cy);text-shadow:4px 4px 0 var(--bl);letter-spacing:2px;animation:flk 5s infinite;}
+.t2{font-size:7px;color:var(--yw);margin-top:8px;letter-spacing:3px;}
+.t3{font-size:5px;color:var(--gr);margin-top:6px;}
+#wcanvas{display:block;margin:10px auto 0;}
+
+.grid{max-width:1100px;margin:0 auto;padding:24px 16px;display:grid;gap:24px;}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:24px;}
+@media(max-width:680px){.two{grid-template-columns:1fr;}}
+
+.pbox{border:4px solid var(--cy);box-shadow:0 0 0 4px var(--dk),0 0 0 8px var(--cy);background:var(--md);}
+.ybox{border:4px solid var(--yw);box-shadow:0 0 0 4px var(--dk),0 0 0 8px var(--yw);background:var(--md);}
+
+.scard{padding:20px;text-align:center;}
+.slbl{font-size:6px;color:var(--gr);letter-spacing:2px;margin-bottom:10px;}
+#semo{font-size:40px;margin:6px 0;display:block;}
+#snum{font-size:clamp(36px,8vw,64px);line-height:1;margin:6px 0;display:block;color:var(--cy);}
+#sgrd{font-size:clamp(10px,2.5vw,18px);margin:6px 0;letter-spacing:2px;display:block;}
+#svrd{font-size:7px;line-height:2;margin-top:10px;padding:8px;background:rgba(0,0,0,.3);border-left:4px solid var(--cy);min-height:48px;}
+.fmtr{display:flex;gap:3px;justify-content:center;flex-wrap:wrap;margin:10px 0;}
+.fb{width:14px;height:14px;background:var(--gr);}
+.fb.lit{animation:pb 1s ease-in-out infinite alternate;}
+#fl{font-size:5px;color:var(--gr);margin-top:4px;}
+
+.wgrd{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:8px;}
+.wtile{padding:10px 6px;text-align:center;background:rgba(0,0,0,.3);border:2px solid rgba(255,255,255,.1);transition:border-color .2s;}
+.wtile.warn{border-color:var(--rd);animation:pulse 2s infinite;}
+.wico{font-size:18px;display:block;margin-bottom:6px;}
+.wnm{font-size:5px;color:var(--gr);margin-bottom:4px;}
+.wvl{font-size:9px;color:var(--cy);}
+.wvl.danger{color:var(--rd);}
+.wvl.caution{color:var(--or);}
+.wvl.ok{color:var(--gn);}
+
+.stitle{font-size:7px;color:var(--yw);margin-bottom:14px;letter-spacing:2px;border-bottom:2px solid var(--yw);padding-bottom:6px;}
+.srow{display:flex;align-items:center;gap:8px;margin:7px 0;}
+.slb2{font-size:5px;color:var(--gr);width:72px;flex-shrink:0;}
+.strack{flex:1;height:10px;background:rgba(0,0,0,.5);border:2px solid rgba(255,255,255,.1);overflow:hidden;}
+.sfill{height:100%;transition:width 1.2s cubic-bezier(.4,0,.2,1);}
+.sval{font-size:6px;color:var(--wh);width:52px;text-align:right;flex-shrink:0;}
+
+/* ALERT BANNER */
+.alert-banner{display:none;padding:8px 12px;font-size:6px;line-height:2;margin-bottom:12px;border:2px solid currentColor;animation:pulse 2s infinite;}
+.alert-banner.show{display:block;}
+.alert-uv{color:var(--or);border-color:var(--or);background:rgba(255,140,0,.1);}
+.alert-bb{color:var(--pk);border-color:var(--pk);background:rgba(255,110,180,.1);}
+.alert-err{color:var(--or);border-color:var(--or);background:rgba(255,140,0,.1);}
+
+/* SEARCH / POOL SELECTOR */
+.search-panel{display:none;position:fixed;inset:0;background:var(--dk);z-index:500;overflow-y:auto;padding:16px;box-sizing:border-box;}
+.search-panel.open{display:block;}
+.search-hdr{display:flex;gap:8px;align-items:center;margin-bottom:12px;border-bottom:2px solid var(--cy);padding-bottom:12px;}
+#search-input{flex:1;background:var(--md);border:2px solid var(--cy);color:var(--wh);font-family:'Press Start 2P',monospace;font-size:7px;padding:8px 10px;outline:none;}
+#search-input::placeholder{color:var(--gr);}
+.search-close{background:none;border:2px solid var(--rd);color:var(--rd);font-family:'Press Start 2P',monospace;font-size:8px;padding:6px 10px;cursor:pointer;}
+.search-sec{font-size:6px;color:var(--gr);letter-spacing:2px;margin:14px 0 6px;}
+.pool-row{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--bl);margin-bottom:3px;cursor:pointer;transition:background .1s;}
+.pool-row:hover{border-color:var(--cy);background:var(--md);}
+.pool-row.active{border-color:var(--gn);background:rgba(0,255,136,.08);}
+.pool-row .pr-fav{background:none;border:none;cursor:pointer;font-size:14px;line-height:1;padding:0;flex-shrink:0;}
+.pool-row .pr-name{flex:1;font-size:6px;color:var(--wh);line-height:1.8;}
+.pool-row .pr-loc{font-size:5px;color:var(--gr);flex-shrink:0;text-align:right;line-height:1.8;}
+.pool-row .pr-badge{font-size:5px;color:var(--gn);flex-shrink:0;border:1px solid var(--gn);padding:1px 4px;}
+#fav-section{display:none;}
+#fav-section.has-favs{display:block;}
+
+.tabbar{display:flex;flex-wrap:wrap;border-bottom:4px solid var(--cy);}
+.tbtn{font-family:'Press Start 2P',monospace;font-size:5px;padding:9px 8px;background:transparent;color:var(--gr);border:none;cursor:pointer;border-top:4px solid transparent;border-left:4px solid transparent;border-right:4px solid transparent;transition:all .2s;letter-spacing:1px;}
+.tbtn.active{color:var(--cy);background:var(--md);border-color:var(--cy);border-bottom-color:var(--md);margin-bottom:-4px;}
+.tpanel{display:none;padding:14px;}.tpanel.active{display:block;}
+
+.sws{display:grid;gap:7px;}
+.sw{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;padding:9px 10px;background:rgba(0,0,0,.3);border:2px solid rgba(255,255,255,.1);}
+.stm{font-size:7px;color:var(--yw);}
+.sdsc{font-size:5px;color:var(--gr);line-height:1.8;}
+.sbdg{font-size:8px;padding:4px 5px;border:2px solid currentColor;text-align:center;min-width:40px;}
+
+/* 7-DAY OUTLOOK */
+.outlook-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;}
+.outlook-day{padding:10px 8px;background:rgba(0,0,0,.3);border:2px solid rgba(255,255,255,.1);text-align:center;}
+.outlook-date{font-size:5px;color:var(--gr);margin-bottom:6px;}
+.outlook-score{font-size:18px;font-weight:bold;margin:4px 0;}
+.outlook-grade{font-size:5px;margin-bottom:6px;}
+.outlook-detail{font-size:5px;color:var(--gr);line-height:2;}
+
+.dbdg{display:inline-block;font-size:5px;padding:3px 6px;border:2px solid var(--gr);color:var(--gr);margin-left:8px;vertical-align:middle;}
+.dbdg.live{border-color:var(--gn);color:var(--gn);}
+.dbdg.sim{border-color:var(--yw);color:var(--yw);}
+
+.rbtn{font-family:'Press Start 2P',monospace;font-size:7px;padding:10px 16px;background:var(--dk);color:var(--cy);border:4px solid var(--cy);cursor:pointer;display:block;margin:14px auto;transition:all .15s;letter-spacing:1px;}
+.rbtn:hover{background:var(--cy);color:var(--dk);transform:translate(-2px,-2px);box-shadow:4px 4px 0 var(--bl);}
+.rbtn:disabled{opacity:.5;cursor:wait;}
+
+/* PWA INSTALL BUTTON */
+#pwa-btn{display:none;font-family:'Press Start 2P',monospace;font-size:6px;padding:8px 14px;background:var(--dk);color:var(--gn);border:4px solid var(--gn);cursor:pointer;margin:0 auto 8px;letter-spacing:1px;transition:all .15s;}
+#pwa-btn:hover{background:var(--gn);color:var(--dk);}
+
+#ts{text-align:center;font-size:5px;color:var(--gr);padding:6px;}
+footer{text-align:center;padding:14px;border-top:4px solid var(--cy);font-size:5px;color:var(--gr);line-height:2.5;}
+.r-epic{color:#00ff88}.r-great{color:#ffe600}.r-ok{color:#ff8c00}.r-meh{color:#ff6eb4}.r-nope{color:#ff3060}
+.my-pool-btn{font-family:'Press Start 2P',monospace;font-size:6px;padding:6px 10px;background:none;color:var(--gn);border:2px solid var(--gn);cursor:pointer;flex-shrink:0;letter-spacing:1px;transition:all .15s;}
+.my-pool-btn:hover{background:var(--gn);color:var(--dk);}
+#hdr-fav{background:none;border:none;cursor:pointer;font-size:22px;color:var(--gr);line-height:1;padding:4px 0;transition:color .2s,transform .1s;display:block;margin:2px auto 0;}
+#hdr-fav.starred{color:var(--yw);}
+#hdr-fav:active{transform:scale(1.3);}
+#search-map-container{width:100%;height:260px;margin-bottom:4px;border:2px solid var(--cy);}
+#copy-link-btn{font-family:'Press Start 2P',monospace;font-size:6px;padding:8px 14px;background:var(--dk);color:var(--pk);border:4px solid var(--pk);cursor:pointer;display:block;margin:0 auto 8px;letter-spacing:1px;transition:all .15s;}
+#copy-link-btn:hover{background:var(--pk);color:var(--dk);}
+#recent-section{display:none;}
+#recent-section.has-recent{display:block;}
+#map-container{width:100%;height:420px;border:2px solid var(--cy);}
+.oracle-tip{background:var(--dk)!important;border:1px solid var(--cy)!important;color:var(--cy)!important;font-family:'Press Start 2P',monospace!important;font-size:5px!important;padding:4px 6px!important;border-radius:0!important;box-shadow:0 0 8px var(--cy)!important;}
+.oracle-tip::before{border-top-color:var(--cy)!important;}
+</style>
+</head>
+<body>
+
+<div id="loader">
+  <div class="ltitle">ROCK ORACLE</div>
+  <div style="font-size:36px;animation:wb .8s ease-in-out infinite">🌊</div>
+  <div class="ltrack"><div id="lb"></div></div>
+  <div id="lm">INITIALISING...</div>
+</div>
+
+<div id="app">
+  <header>
+    <div class="waves">
+      <div class="wave"></div><div class="wave"></div><div class="wave"></div><div class="wave"></div><div class="wave"></div>
+      <div class="wave"></div><div class="wave"></div><div class="wave"></div><div class="wave"></div><div class="wave"></div>
+    </div>
+    <div class="t1">▓ ROCK ORACLE ▓</div>
+    <div id="pool-sub" class="t2">★ LOADING... ★</div>
+    <div id="pool-loc" class="t3">-- | --</div>
+    <button id="hdr-fav" onclick="window.toggleHdrFav()" title="Favourite this pool">☆</button>
+    <canvas id="wcanvas" width="320" height="40" style="width:min(320px,100%);height:40px;"></canvas>
+  </header>
+
+  <div class="grid">
+
+    <!-- ALERT BANNERS -->
+    <div id="alert-uv" class="alert-banner alert-uv">☀️ UV ALERT: High UV index detected — apply SPF50+ before heading out</div>
+    <div id="alert-bb" class="alert-banner alert-bb">🪼 BLUEBOTTLE RISK: Onshore winds detected — check conditions before entering water</div>
+    <div id="alert-err" class="alert-banner alert-err">⚠ LIVE DATA UNAVAILABLE — showing seasonal estimate. Check your connection.</div>
+
+    <div class="two">
+      <!-- SCORE -->
+      <div class="pbox scard">
+        <div class="slbl">▶ SWIM ORACLE ◀</div>
+        <span id="semo">🏊</span>
+        <span id="snum">--</span>
+        <span id="sgrd">LOADING<span style="animation:blk 1s step-end infinite">_</span></span>
+        <div id="svrd">CONSULTING THE ORACLE...</div>
+        <div style="margin-top:12px">
+          <div class="slbl" style="margin-bottom:6px">FUN INDEX</div>
+          <div class="fmtr" id="fm"></div>
+          <div id="fl">CALCULATING...</div>
+        </div>
+      </div>
+
+      <!-- CONDITIONS -->
+      <div class="ybox" style="padding:14px">
+        <div class="stitle">⚡ LIVE CONDITIONS <span class="dbdg" id="dbdg">LOADING</span></div>
+        <div class="wgrd">
+          <div class="wtile"><span class="wico">🌊</span><div class="wnm">WAVE HT</div><div class="wvl" id="tile-wh">--</div></div>
+          <div class="wtile"><span class="wico">💨</span><div class="wnm">WIND</div><div class="wvl" id="tile-ws">--</div></div>
+          <div class="wtile"><span class="wico">🌡️</span><div class="wnm">AIR TEMP</div><div class="wvl" id="tile-at">--</div></div>
+          <div class="wtile"><span class="wico">🐟</span><div class="wnm">SEA TEMP</div><div class="wvl" id="tile-st">--</div></div>
+          <div class="wtile"><span class="wico">☁️</span><div class="wnm">CLOUD</div><div class="wvl" id="tile-cc">--</div></div>
+          <div class="wtile"><span class="wico">🌬️</span><div class="wnm">WIND DIR</div><div class="wvl" id="tile-wd">--</div></div>
+          <div class="wtile" id="tile-uv-wrap"><span class="wico">☀️</span><div class="wnm">UV INDEX</div><div class="wvl" id="tile-uv">--</div></div>
+          <div class="wtile" id="tile-bb-wrap"><span class="wico">🪼</span><div class="wnm">BLUEBOTTLE</div><div class="wvl" id="tile-bb">--</div></div>
+          <div class="wtile"><span class="wico">⏰</span><div class="wnm">LOCAL TIME</div><div class="wvl" id="tile-lt">--</div></div>
+          <div class="wtile"><span class="wico">🏄</span><div class="wnm">SWELL PER</div><div class="wvl" id="tile-wp">--</div></div>
+        </div>
+        <div style="margin-top:14px">
+          <div class="stitle" style="font-size:6px">CONDITION RATINGS</div>
+          <div id="statbars"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TABS -->
+    <div class="pbox" style="padding:0;overflow:hidden">
+      <div class="tabbar">
+        <button class="tbtn active" onclick="showTab(this,'tab-tide')">📈 TIDE</button>
+        <button class="tbtn" onclick="showTab(this,'tab-windows')">🏊 WINDOWS</button>
+        <button class="tbtn" onclick="showTab(this,'tab-outlook')">📅 7 DAYS</button>
+        <button class="tbtn" onclick="showTab(this,'tab-map')">🗺 MAP</button>
+        <button class="tbtn" onclick="showTab(this,'tab-about')">❓ INFO</button>
+      </div>
+      <div class="tpanel active" id="tab-tide">
+        <div class="stitle" id="tide-title">24H TIDE FORECAST</div>
+        <canvas id="tide-canvas" style="width:100%;height:150px;display:block"></canvas>
+        <div style="font-size:5px;color:var(--gr);text-align:center;margin-top:6px">■ SEA LEVEL (m) | ░ CURRENT HOUR</div>
+      </div>
+      <div class="tpanel" id="tab-windows">
+        <div class="stitle">TODAY'S TOP SWIM WINDOWS</div>
+        <div class="sws" id="swim-windows"><div style="font-size:7px;color:var(--gr)">CALCULATING...</div></div>
+      </div>
+      <div class="tpanel" id="tab-outlook">
+        <div class="stitle">7-DAY SWIM OUTLOOK</div>
+        <div class="outlook-grid" id="outlook-grid"><div style="font-size:7px;color:var(--gr)">CALCULATING...</div></div>
+        <div style="font-size:5px;color:var(--gr);margin-top:10px">Based on forecast data for this location. Scores assume current sea temp and typical conditions.</div>
+      </div>
+      <div class="tpanel" id="tab-map">
+        <div class="stitle">🗺 POOL MAP — EAST COAST</div>
+        <div id="map-container"></div>
+        <div style="font-size:5px;color:var(--gr);text-align:center;margin-top:6px">■ CYAN = POOL &nbsp;|&nbsp; ■ YELLOW = ACTIVE &nbsp;|&nbsp; TAP TO SELECT</div>
+      </div>
+      <div class="tpanel" id="tab-about">
+        <div class="stitle">HOW THE ORACLE WORKS</div>
+        <div style="font-size:6px;line-height:2.5;color:var(--gr)">
+          <p style="color:var(--cy);margin-bottom:6px">SCORING (0–100)</p>
+          <p>▶ WAVE HEIGHT (25pts) — Best 0.5–1.5m.</p><br>
+          <p>▶ WIND SPEED (20pts) — Under 15km/h = glassy.</p><br>
+          <p>▶ TIME OF DAY (20pts) — 6–9am and 3–6pm peak.</p><br>
+          <p>▶ AIR TEMP (15pts) — Ideal 22–28°C.</p><br>
+          <p>▶ SEA TEMP (10pts) — Ideal 18–24°C.</p><br>
+          <p>▶ CLOUD COVER (10pts) — Partial cloud sweet spot.</p><br>
+          <p style="color:var(--yw);margin-top:6px">UV INDEX</p>
+          <p>1–2 LOW | 3–5 MODERATE | 6–7 HIGH | 8–10 VERY HIGH | 11+ EXTREME</p>
+          <p>Alert fires at 6+. In tropical zones UV regularly hits 11–13+.</p><br>
+          <p style="color:var(--pk);margin-top:6px">BLUEBOTTLE RISK</p>
+          <p>NE–E–SE onshore winds push bluebottles toward shore. Risk is LOW with W/SW/NW offshore winds.</p><br>
+          <p id="about-safety" style="color:var(--rd)">⚠ NOT A SAFETY TOOL.</p>
+        </div>
+      </div>
+    </div>
+
+    <button id="pwa-btn" onclick="installPWA()">📱 ADD TO HOME SCREEN</button>
+    <button class="rbtn" id="rbtn" onclick="doRefresh()">▶ REFRESH DATA ◀</button>
+    <button class="rbtn" onclick="showSearch()" style="border-color:var(--yw);color:var(--yw);">⌕ CHANGE POOL</button>
+    <button id="copy-link-btn" onclick="copyPoolLink()">⎘ COPY LINK</button>
+    <div id="ts">LAST UPDATE: --</div>
+  </div>
+
+  <!-- POOL SEARCH PANEL -->
+  <div id="search-panel" class="search-panel">
+    <div class="search-hdr">
+      <input id="search-input" type="text" placeholder="SEARCH POOLS..." autocomplete="off" oninput="renderSearchList(this.value)">
+      <button class="my-pool-btn" onclick="scrollToActivePool()">⌖ MY POOL</button>
+      <button class="search-close" onclick="hideSearch()">✕ CLOSE</button>
+    </div>
+    <div id="search-map-container"></div>
+    <div id="fav-section">
+      <div class="search-sec">★ FAVOURITES</div>
+      <div id="fav-list"></div>
+    </div>
+    <div id="recent-section">
+      <div class="search-sec">⏱ RECENTLY VISITED</div>
+      <div id="recent-list"></div>
+    </div>
+    <div class="search-sec">ALL POOLS</div>
+    <div id="pool-list"></div>
+  </div>
+
+  <footer>
+    ROCK ORACLE v1.0 | LIVE DATA: OPEN-METEO.COM | NO LIFEGUARD ON DUTY<br>
+    ⚠ NOT AN OFFICIAL SAFETY RESOURCE — ALWAYS CHECK CONDITIONS IN PERSON
+  </footer>
+</div>
+
+<script type="module">
+import { tideAt, TIDES, calcUV, uvLabel, bluebottleRisk, calcScore, getGrade, dirLabel } from './src/lib.js';
+import { POOLS, DEFAULT_POOL_ID } from './src/pools.js?v=6';
+
+// ── UTILITIES ────────────────────────────────────────────────
+const log = (...a) => { try { console.warn(...a.map(x => typeof x==='object'?JSON.stringify(x):x)); } catch(e){} };
+const el  = id => document.getElementById(id);
+const set = (id, val) => { const e = el(id); if (e) e.textContent = val; };
+
+// ── POOL STATE ────────────────────────────────────────────────
+let currentPool = null;
+
+function getPool(id) {
+  return POOLS.find(p => p.id === id) || POOLS.find(p => p.id === DEFAULT_POOL_ID);
+}
+
+function getUrls(pool) {
+  const base = '?latitude=' + pool.lat + '&longitude=' + pool.lon +
+    '&timezone=' + encodeURIComponent(pool.timezone) + '&forecast_days=7';
+  return {
+    w: 'https://api.open-meteo.com/v1/forecast' + base +
+       '&current=temperature_2m,cloud_cover,wind_speed_10m,wind_direction_10m,uv_index' +
+       '&daily=temperature_2m_max,wind_speed_10m_max,wind_direction_10m_dominant,cloud_cover_mean,uv_index_max',
+    m: 'https://marine-api.open-meteo.com/v1/marine' + base +
+       '&current=wave_height,wave_period&hourly=sea_surface_temperature' +
+       '&daily=wave_height_max',
+  };
+}
+
+function initPool() {
+  const id = new URLSearchParams(location.search).get('pool') || DEFAULT_POOL_ID;
+  currentPool = getPool(id);
+  updateHeader();
+}
+
+function updateHeader() {
+  const lat = Math.abs(currentPool.lat).toFixed(4) + (currentPool.lat < 0 ? '°S' : '°N');
+  const lon = Math.abs(currentPool.lon).toFixed(4) + (currentPool.lon > 0 ? '°E' : '°W');
+  set('pool-sub', '★ ' + currentPool.name.toUpperCase() + ' ★');
+  set('pool-loc', lat + ' ' + lon + ' | ' + currentPool.suburb + ' ' + currentPool.state);
+  set('tide-title', '24H TIDE FORECAST — ' + currentPool.suburb.toUpperCase());
+  const lg = currentPool.hasLifeguard;
+  set('about-safety', '⚠ NOT A SAFETY TOOL. ' + (lg ? 'Lifeguard on duty (check roster).' : 'No lifeguard on duty.'));
+  const favBtn = el('hdr-fav');
+  if (favBtn) {
+    const isFav = getFavs().includes(currentPool.id);
+    favBtn.textContent = isFav ? '★' : '☆';
+    favBtn.classList.toggle('starred', isFav);
+  }
+}
+
+function selectPool(pool) {
+  if (currentPool && currentPool.id !== pool.id) addToRecent(currentPool.id);
+  currentPool = pool;
+  history.pushState(null, '', '?pool=' + pool.id);
+  updateHeader();
+  hideSearch();
+  doRefresh();
+}
+
+// ── FAVOURITES ────────────────────────────────────────────────
+const FAV_KEY = 'rock_oracle_favs';
+function getFavs() { try { return JSON.parse(localStorage.getItem(FAV_KEY) || '[]'); } catch { return []; } }
+function toggleFav(id) {
+  const favs = getFavs();
+  const idx = favs.indexOf(id);
+  if (idx >= 0) favs.splice(idx, 1); else favs.unshift(id);
+  localStorage.setItem(FAV_KEY, JSON.stringify(favs));
+  renderSearchList(el('search-input')?.value || '');
+}
+
+// ── RECENTLY VISITED ──────────────────────────────────────────
+const RECENT_KEY = 'oracle_recent';
+function getRecent() { try { return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]'); } catch { return []; } }
+function addToRecent(id) {
+  const r = getRecent().filter(x => x !== id);
+  r.unshift(id);
+  if (r.length > 5) r.length = 5;
+  localStorage.setItem(RECENT_KEY, JSON.stringify(r));
+}
+function scrollToActivePool() {
+  const input = el('search-input');
+  if (input && input.value) { input.value = ''; renderSearchList(''); }
+  requestAnimationFrame(() => {
+    const panel = el('search-panel');
+    const row = panel && panel.querySelector('.pool-row.active');
+    if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+}
+
+// ── SEARCH ────────────────────────────────────────────────────
+function renderSearchList(query) {
+  const q = (query || '').toLowerCase().trim();
+  const favs = getFavs();
+  const filtered = POOLS.filter(p =>
+    !q || p.name.toLowerCase().includes(q) ||
+          p.suburb.toLowerCase().includes(q) ||
+          p.state.toLowerCase().includes(q)
+  );
+
+  function makeRow(p) {
+    const starred = favs.includes(p.id);
+    const active  = currentPool && currentPool.id === p.id;
+    const row = document.createElement('div');
+    row.className = 'pool-row' + (active ? ' active' : '');
+
+    const favBtn = document.createElement('button');
+    favBtn.className = 'pr-fav';
+    favBtn.textContent = starred ? '★' : '☆';
+    favBtn.style.color = starred ? 'var(--yw)' : 'var(--gr)';
+    favBtn.onclick = (e) => { e.stopPropagation(); toggleFav(p.id); };
+
+    const name = document.createElement('div');
+    name.className = 'pr-name';
+    name.textContent = p.name;
+
+    const loc = document.createElement('div');
+    loc.className = 'pr-loc';
+    loc.textContent = p.suburb + ' ' + p.state;
+
+    row.appendChild(favBtn);
+    row.appendChild(name);
+    row.appendChild(loc);
+    if (p.hasLifeguard) {
+      const badge = document.createElement('div');
+      badge.className = 'pr-badge';
+      badge.textContent = 'LG';
+      row.appendChild(badge);
+    }
+    row.onclick = () => selectPool(p);
+    row.onmouseenter = () => {
+      const m = _sMarkerMap.get(p.id);
+      if (m && _sMap) { m.openTooltip(); _sMap.panTo([p.lat, p.lon], { animate: true, duration: 0.4 }); }
+    };
+    row.onmouseleave = () => {
+      const m = _sMarkerMap.get(p.id);
+      const isActive = currentPool && p.id === currentPool.id;
+      if (m && !isActive) m.closeTooltip();
+    };
+    return row;
+  }
+
+  // Favourites section
+  const favPools = filtered.filter(p => favs.includes(p.id));
+  const favSec = el('fav-section');
+  const favList = el('fav-list');
+  if (favSec && favList) {
+    favList.innerHTML = '';
+    if (favPools.length > 0) {
+      favSec.style.display = 'block';
+      favPools.forEach(p => favList.appendChild(makeRow(p)));
+    } else {
+      favSec.style.display = 'none';
+    }
+  }
+
+  // Recently visited section
+  const recentIds = getRecent();
+  const recentPools = recentIds.map(id => POOLS.find(p => p.id === id)).filter(Boolean);
+  const filteredRecent = q ? recentPools.filter(p =>
+    p.name.toLowerCase().includes(q) || p.suburb.toLowerCase().includes(q) || p.state.toLowerCase().includes(q)
+  ) : recentPools;
+  const recentSec  = el('recent-section');
+  const recentList = el('recent-list');
+  if (recentSec && recentList) {
+    recentList.innerHTML = '';
+    if (filteredRecent.length > 0) {
+      recentSec.classList.add('has-recent');
+      filteredRecent.forEach(p => recentList.appendChild(makeRow(p)));
+    } else {
+      recentSec.classList.remove('has-recent');
+    }
+  }
+
+  // All pools list
+  const poolList = el('pool-list');
+  if (poolList) {
+    poolList.innerHTML = '';
+    filtered.forEach(p => poolList.appendChild(makeRow(p)));
+  }
+}
+
+function showSearch() {
+  const panel = el('search-panel');
+  if (panel) panel.classList.add('open');
+  const input = el('search-input');
+  if (input) { input.value = ''; input.focus(); }
+  renderSearchList('');
+  drawSearchMap();
+  requestAnimationFrame(() => {
+    const row = panel && panel.querySelector('.pool-row.active');
+    if (row) row.scrollIntoView({ behavior: 'instant', block: 'center' });
+  });
+}
+
+function hideSearch() {
+  const panel = el('search-panel');
+  if (panel) panel.classList.remove('open');
+}
+
+// ── COPY LINK ─────────────────────────────────────────────────
+function copyPoolLink() {
+  const url = location.origin + location.pathname + '?pool=' + (currentPool ? currentPool.id : '');
+  const btn = el('copy-link-btn');
+  const flash = orig => {
+    if (!btn) return;
+    btn.textContent = '✓ COPIED!';
+    setTimeout(() => { btn.textContent = orig; }, 2000);
+  };
+  navigator.clipboard?.writeText(url).then(() => flash('⎘ COPY LINK')).catch(() => {
+    // fallback for non-HTTPS/older browsers
+    const ta = Object.assign(document.createElement('textarea'), { value: url });
+    ta.style.cssText = 'position:fixed;opacity:0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch(e) {}
+    document.body.removeChild(ta);
+    flash('⎘ COPY LINK');
+  });
+}
+
+// ── LOADER ───────────────────────────────────────────────────
+let lbPct = 0;
+const lbIv = setInterval(() => { lbPct = Math.min(lbPct+8, 85); el('lb').style.width = lbPct+'%'; }, 300);
+const setMsg = m => { const e = el('lm'); if (e) e.textContent = m; };
+
+function showApp() {
+  clearInterval(lbIv);
+  el('lb').style.width = '100%';
+  setTimeout(() => {
+    el('loader').style.opacity = '0';
+    el('app').style.opacity = '1';
+    setTimeout(() => { el('loader').style.display = 'none'; }, 500);
+  }, 300);
+}
+setTimeout(showApp, 12000);
+
+// ── WATER ANIMATION ──────────────────────────────────────────
+(function() {
+  const c = el('wcanvas'); if (!c) return;
+  const ctx = c.getContext('2d');
+  let t = 0;
+  (function f() {
+    ctx.clearRect(0, 0, c.width, c.height);
+    const W = c.width, H = c.height;
+    for (let x = 0; x < W; x += 4) {
+      const y1 = H/2 + Math.sin((x/18)+t)*7 + Math.sin((x/9)+t*1.5)*3;
+      const y2 = H/2 + Math.sin((x/18)+t+1)*7 + 5;
+      ctx.fillStyle = '#1a3a7a'; ctx.fillRect(x, y1, 4, H-y1);
+      ctx.fillStyle = '#0d1f4f'; ctx.fillRect(x, y2, 4, H-y2);
+      if (Math.sin((x/7)+t*2) > 0.85) { ctx.fillStyle = '#00e5ff'; ctx.fillRect(x, Math.floor(y1/4)*4, 4, 4); }
+    }
+    t += 0.05; requestAnimationFrame(f);
+  })();
+})();
+
+// ── TIDE CHART ───────────────────────────────────────────────
+function drawTide(curHour) {
+  const canvas = el('tide-canvas'); if (!canvas) return;
+  const W = Math.max(canvas.offsetWidth || 600, 300) * (window.devicePixelRatio || 1);
+  const H = 150;
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#050a1a'; ctx.fillRect(0, 0, W, H);
+  const mn = Math.min(...TIDES)-0.1, mx = Math.max(...TIDES)+0.1, rng = mx-mn;
+  const pad = 20, cW = W-pad*2, cH = H-pad*2;
+  for (let i=0;i<=4;i++){const y=pad+(i/4)*cH;for(let x=0;x<W;x+=4){ctx.fillStyle='rgba(255,255,255,.04)';ctx.fillRect(x,Math.round(y),2,1);}}
+  ctx.fillStyle='rgba(0,229,255,.10)';
+  ctx.fillRect(Math.round(pad+(curHour/24)*cW),pad,Math.max(3,(1/24)*cW),cH);
+  const pts = TIDES.map((v,i)=>({x:Math.round(pad+(i/24)*cW),y:Math.round(pad+(1-(v-mn)/rng)*cH)}));
+  for(let i=0;i<pts.length-1;i++){
+    const x1=pts[i].x,x2=pts[i+1].x,y1=pts[i].y,y2=pts[i+1].y;
+    for(let x=x1;x<x2;x+=2){
+      const f=(x-x1)/(x2-x1),y=Math.round(y1+f*(y2-y1)),d=H-pad-y;
+      for(let dy=0;dy<d;dy+=2){
+        ctx.fillStyle=`rgba(${10+Math.floor(dy/d*20)},${20+Math.floor(dy/d*35)},${55+Math.floor(dy/d*65)},${0.55-(dy/d)*0.35})`;
+        ctx.fillRect(x,y+dy,2,2);
+      }
+    }
+  }
+  ctx.fillStyle='#00e5ff';
+  for(let i=0;i<pts.length-1;i++){
+    ctx.fillRect(pts[i].x,pts[i].y,3,3);
+    const dx=pts[i+1].x-pts[i].x,dy=pts[i+1].y-pts[i].y,steps=Math.max(Math.abs(dx),Math.abs(dy));
+    for(let s=0;s<steps;s++) ctx.fillRect(Math.round(pts[i].x+(dx/steps)*s),Math.round(pts[i].y+(dy/steps)*s),2,2);
+  }
+}
+
+const VERDICTS = {
+  epic:  ["{pool} is absolutely mint right now. Tell your Nana.","THIS IS THE ONE. Drop everything. Go now.","LEGENDARY CONDITIONS. Don't waste it.","10/10 NO NOTES. Your towel is already there in spirit."],
+  great: ["Yeah nah, it's actually a yes. Get in.","Pretty bloody good. Mild regret if you skip.","{pool} is calling. She says bring sunscreen.","Solid swim. You'll be chuffed."],
+  ok:    ["Could be worse. Could be Bondi.","3 out of 5 crabs. Technically swimmable.","Meh. Fine. You've swum in worse.","{pool} will accept you. Reluctantly."],
+  ok_bondi: ["You're AT Bondi. We're so sorry.","3 out of 5 crabs. Technically swimmable.","Meh. Fine. You've swum in worse.","Bold choice. Brave. Foolish. Bold."],
+  meh:   ["Look, you COULD go. We wouldn't recommend it.","Giving 'haunted aquarium' energy today.","Two stars. Would not swell again.","This is how you end up with a mouthful of seaweed."],
+  nope:  ["Hard no. The ocean is in its villain era.","STAY HOME. Watch Planet Earth. Same vibes.","Not today, legend. Not today.","The waves have filed a restraining order."],
+};
+function getVerdict(n) {
+  const atBondi = currentPool && currentPool.id === 'bondi-icebergs';
+  const k = n>=85?'epic':n>=70?'great':n>=55?(atBondi?'ok_bondi':'ok'):n>=40?'meh':'nope';
+  const p = VERDICTS[k];
+  const v = p[Math.floor(Math.random()*p.length)];
+  return v.replace('{pool}', currentPool ? currentPool.name : 'The pool');
+}
+
+// ── FALLBACK ─────────────────────────────────────────────────
+function makeFallback() {
+  const syd = new Date(new Date().toLocaleString('en-US',{timeZone: currentPool.timezone}));
+  const warm = syd.getMonth()>=10||syd.getMonth()<=3;
+  const r = Math.random;
+  return {
+    h:syd.getHours(), syd, src:'seasonal estimate', live:false,
+    wh:0.4+r()*1.4, wind:6+r()*22, windDir:120+r()*120,
+    at:warm?23+r()*5:16+r()*5, st:warm?21+r()*3:16+r()*3,
+    cc:15+r()*55, wp:7+r()*6,
+  };
+}
+
+// ── FETCH (Open-Meteo — no API key, no Claude, direct JSON) ──
+async function fetchWeather() {
+  const { w, m } = getUrls(currentPool);
+  const syd = new Date(new Date().toLocaleString('en-US', { timeZone: currentPool.timezone }));
+  const h   = syd.getHours();
+  const [wRes, mRes] = await Promise.all([fetch(w), fetch(m)]);
+  if (!wRes.ok || !mRes.ok) throw new Error('Open-Meteo ' + wRes.status + '/' + mRes.status);
+  const [wData, mData] = await Promise.all([wRes.json(), mRes.json()]);
+  const seaTemps = mData.hourly?.sea_surface_temperature || [];
+  const wd = wData.daily || {};
+  const md = mData.daily  || {};
+  const days = (wd.time || []).map((_, i) => ({
+    at:      wd.temperature_2m_max?.[i]             ?? null,
+    wind:    wd.wind_speed_10m_max?.[i]             ?? null,
+    windDir: wd.wind_direction_10m_dominant?.[i]    ?? null,
+    cc:      wd.cloud_cover_mean?.[i]               ?? null,
+    uvRaw:   wd.uv_index_max?.[i]                   ?? null,
+    wh:      md.wave_height_max?.[i]                ?? null,
+  }));
+  return {
+    h, syd, src: 'Open-Meteo (live)', live: true,
+    at:      wData.current.temperature_2m,
+    cc:      wData.current.cloud_cover,
+    wind:    wData.current.wind_speed_10m,
+    windDir: wData.current.wind_direction_10m,
+    uvRaw:   wData.current.uv_index ?? null,
+    wh:      mData.current.wave_height,
+    wp:      mData.current.wave_period,
+    st:      seaTemps[h] ?? seaTemps[0] ?? 20,
+    days,
+  };
+}
+
+// ── CACHE (localStorage, 30-min TTL, per-pool) ───────────────
+const WX_TTL = 30 * 60 * 1000;
+function wxKey() { return 'oracle_wx_' + (currentPool ? currentPool.id : 'default'); }
+
+function loadCache() {
+  try {
+    const { ts, data } = JSON.parse(localStorage.getItem(wxKey()) || 'null') || {};
+    return (ts && Date.now() - ts < WX_TTL) ? data : null;
+  } catch { return null; }
+}
+
+function saveCache(data) {
+  try {
+    const d2 = { ...data, syd: data.syd instanceof Date ? data.syd.toISOString() : data.syd };
+    localStorage.setItem(wxKey(), JSON.stringify({ ts: Date.now(), data: d2 }));
+  } catch {}
+}
+
+// ── 7-DAY OUTLOOK ────────────────────────────────────────────
+function buildOutlook(d) {
+  const syd   = d.syd instanceof Date ? d.syd : new Date(d.syd);
+  const month = syd.getMonth();
+  const days  = [];
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(syd);
+    date.setDate(date.getDate() + i);
+    const real = d.days && d.days[i];
+    let dayD;
+    if (real && real.at != null && real.wind != null) {
+      // Real Open-Meteo daily forecast data
+      dayD = {
+        h: 8, at: real.at, cc: real.cc ?? d.cc,
+        wind: real.wind, windDir: real.windDir ?? d.windDir,
+        wh: Math.max(0.1, real.wh ?? d.wh), wp: d.wp, st: d.st,
+      };
+    } else {
+      // Seeded estimate from current conditions (fallback)
+      const seed  = (date.getDate() * 17 + date.getMonth() * 31) % 100 / 100;
+      const seed2 = ((date.getDate()+7) * 13 + 41) % 100 / 100;
+      dayD = {
+        h: 8, at: d.at + (seed-0.5)*4,
+        cc: Math.max(0, Math.min(100, d.cc + (seed2-0.5)*40)),
+        wind: Math.max(3, d.wind + (seed-0.5)*12),
+        windDir: (d.windDir + (seed2-0.5)*60 + 360) % 360,
+        wh: Math.max(0.2, d.wh + (seed-0.5)*0.6), wp: d.wp,
+        st: d.st + (seed2-0.3)*1.5,
+      };
+    }
+    const {total} = calcScore(dayD);
+    const g = getGrade(total);
+    const uvDay = (real && real.uvRaw != null) ? real.uvRaw : calcUV(12, month, dayD.cc);
+    days.push({date, total, g, at: dayD.at, wh: dayD.wh, wind: dayD.wind, uvDay, i});
+  }
+  return days;
+}
+
+// ── RENDER ───────────────────────────────────────────────────
+function animNum(elem, to, dur) {
+  const start = performance.now();
+  (function f(now){
+    const p = Math.min(1,(now-start)/dur);
+    elem.textContent = Math.round(to*(1-Math.pow(1-p,3)));
+    if(p<1) requestAnimationFrame(f);
+  })(performance.now());
+}
+
+function render(d) {
+  const {total, bk} = calcScore(d);
+  const g   = getGrade(total);
+  const v   = getVerdict(total);
+  const syd = d.syd instanceof Date ? d.syd : new Date(d.syd);
+  const month = syd.getMonth();
+
+  // UV — use fetched value if available, else calculate
+  const uv = (d.uvRaw != null && d.uvRaw > 0) ? d.uvRaw : calcUV(d.h, month, d.cc);
+  const uvInfo = uvLabel(uv);
+  const bb     = bluebottleRisk(d.windDir, d.wind, currentPool.onshoreWind);
+
+  // Alert banners
+  const uvAlert = el('alert-uv');
+  const bbAlert = el('alert-bb');
+  if (uvAlert) { uvAlert.className = 'alert-banner alert-uv' + (uv >= 6 ? ' show' : ''); }
+  if (bbAlert) { bbAlert.className = 'alert-banner alert-bb' + (bb.risk >= 2 ? ' show' : ''); }
+
+  // Score panel
+  set('semo', g.e);
+  el('snum').style.color = g.col;
+  animNum(el('snum'), total, 900);
+  el('sgrd').innerHTML = '<span class="'+g.c+'">'+g.g+'</span>';
+  set('svrd', v);
+
+  // Fun meter
+  const fm = el('fm'); fm.innerHTML = '';
+  const lit = Math.round((total/100)*20);
+  for(let i=0;i<20;i++){
+    const b = document.createElement('div');
+    b.className = 'fb'+(i<lit?' lit':'');
+    if(i<lit){b.style.background=g.col;b.style.animationDelay=(i*.05)+'s';}
+    fm.appendChild(b);
+  }
+  set('fl','▓'.repeat(lit)+'░'.repeat(20-lit)+' '+total+'/100');
+
+  // Tiles
+  set('tile-wh', d.wh.toFixed(1)+'m');
+  set('tile-ws', Math.round(d.wind)+'km/h');
+  set('tile-at', d.at.toFixed(1)+'°C');
+  set('tile-st', d.st.toFixed(1)+'°C');
+  set('tile-cc', Math.round(d.cc)+'%');
+  set('tile-wd', dirLabel(d.windDir));
+  set('tile-lt', syd.toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'}));
+  set('tile-wp', d.wp.toFixed(0)+'s');
+
+  // UV tile
+  const uvEl = el('tile-uv');
+  if (uvEl) { uvEl.textContent = uv.toFixed(1)+' '+uvInfo.text; uvEl.className = 'wvl '+uvInfo.cls; }
+  const uvWrap = el('tile-uv-wrap');
+  if (uvWrap) uvWrap.className = 'wtile' + (uv>=6?' warn':'');
+
+  // Bluebottle tile
+  const bbEl = el('tile-bb');
+  if (bbEl) { bbEl.textContent = bb.text; bbEl.className = 'wvl '+bb.cls; }
+  const bbWrap = el('tile-bb-wrap');
+  if (bbWrap) bbWrap.className = 'wtile' + (bb.risk>=2?' warn':'');
+
+  // Badge
+  const badge = el('dbdg');
+  if (badge) { badge.textContent = d.live?'LIVE':'SIMULATED'; badge.className = 'dbdg '+(d.live?'live':'sim'); }
+
+  // Stat bars
+  const sb = el('statbars'); sb.innerHTML = '';
+  bk.forEach(item=>{
+    const pct=(item.s/item.m)*100;
+    const col=pct>70?'var(--gn)':pct>40?'var(--yw)':'var(--rd)';
+    const row=document.createElement('div'); row.className='srow';
+    row.innerHTML='<div class="slb2">'+item.label+'</div>'+
+      '<div class="strack"><div class="sfill" style="width:'+pct+'%;background:'+col+'"></div></div>'+
+      '<div class="sval">'+item.s+'/'+item.m+'</div>';
+    sb.appendChild(row);
+  });
+
+  // Tide chart
+  drawTide(d.h);
+
+  // Swim windows
+  const con = el('swim-windows'); con.innerHTML = '';
+  const wins = [];
+  for(let h=6;h<=20;h++){
+    const {total:t}=calcScore({...d,h});
+    const td=TIDES[h]||1;
+    wins.push({h,s:Math.min(100,Math.max(0,t+(td>0.5&&td<1.4?5:-3))),td});
+  }
+  wins.sort((a,b)=>b.s-a.s).slice(0,5).sort((a,b)=>a.h-b.h).forEach(w=>{
+    const gr=getGrade(w.s);
+    const ampm=w.h<12?'AM':'PM', h12=w.h>12?w.h-12:(w.h||12);
+    const tdir=(TIDES[w.h+1]||w.td)>w.td?'↑RISING':'↓FALLING';
+    const div=document.createElement('div'); div.className='sw';
+    div.innerHTML='<div class="stm">'+String(h12).padStart(2,'0')+':00 '+ampm+'</div>'+
+      '<div class="sdsc">TIDE '+w.td.toFixed(2)+'m '+tdir+' | SCORE '+w.s+'/100</div>'+
+      '<div class="sbdg '+gr.c+'" style="border-color:'+gr.col+'">'+gr.e+'<br>'+w.s+'</div>';
+    con.appendChild(div);
+  });
+
+  // 7-day outlook
+  const og = el('outlook-grid'); og.innerHTML = '';
+  buildOutlook(d).forEach(day=>{
+    const isToday = day.i===0;
+    const dayName = isToday?'TODAY':day.date.toLocaleDateString('en-AU',{weekday:'short'}).toUpperCase();
+    const dateStr = day.date.toLocaleDateString('en-AU',{day:'2-digit',month:'short'}).toUpperCase();
+    const div = document.createElement('div');
+    div.className = 'outlook-day';
+    div.style.borderColor = isToday ? 'var(--cy)' : 'rgba(255,255,255,.1)';
+    div.innerHTML =
+      '<div class="outlook-date">'+dayName+'<br>'+dateStr+'</div>'+
+      '<div class="outlook-score '+day.g.c+'" style="font-size:20px">'+day.total+'</div>'+
+      '<div class="outlook-grade '+day.g.c+'">'+day.g.e+' '+day.g.g+'</div>'+
+      '<div class="outlook-detail">'+
+        day.at.toFixed(0)+'°C | '+day.wh.toFixed(1)+'m<br>'+
+        'WIND '+Math.round(day.wind)+'km/h<br>'+
+        'UV '+day.uvDay.toFixed(0)+' '+uvLabel(day.uvDay).text+
+      '</div>';
+    og.appendChild(div);
+  });
+
+  // Timestamp
+  set('ts','LAST UPDATE: '+
+    syd.toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'})+' AEST  |  '+
+    syd.toLocaleDateString('en-AU',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase()+
+    '  |  '+(d.src||'').toUpperCase());
+}
+
+// ── TABS ─────────────────────────────────────────────────────
+function showTab(btn,id){
+  document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tpanel').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  el(id).classList.add('active');
+  if(id==='tab-tide') drawTide(new Date(new Date().toLocaleString('en-US',{timeZone: currentPool.timezone})).getHours());
+  if(id==='tab-map') drawMap();
+}
+
+// ── POOL MAP ─────────────────────────────────────────────────
+let _map = null;
+let _markers = [];
+let _sMap = null;
+let _sMarkers = [];
+let _sMarkerMap = new Map();
+
+function mkIcon(active) {
+  const c = active ? '#ffe600' : '#00e5ff';
+  const s = active ? 16 : 10;
+  return L.divIcon({
+    className: '',
+    html: `<div style="width:${s}px;height:${s}px;background:${c};border:2px solid ${active?'#fff':'rgba(0,229,255,0.4)'};border-radius:50%;cursor:pointer;box-shadow:0 0 ${active?10:5}px ${c};"></div>`,
+    iconSize: [s, s],
+    iconAnchor: [s/2, s/2],
+    tooltipAnchor: [s/2, 0],
+  });
+}
+
+function drawMap() {
+  if (typeof L === 'undefined') return;
+  const container = el('map-container');
+  if (!container) return;
+
+  if (!_map) {
+    _map = L.map('map-container', { zoomControl: true, attributionControl: false });
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      maxZoom: 18,
+    }).addTo(_map);
+    L.control.attribution({ prefix: '© OSM © CARTO', position: 'bottomright' }).addTo(_map);
+  }
+
+  _markers.forEach(m => m.remove());
+  _markers = [];
+
+  POOLS.forEach(p => {
+    const active = currentPool && p.id === currentPool.id;
+    const m = L.marker([p.lat, p.lon], { icon: mkIcon(active) })
+      .addTo(_map)
+      .bindTooltip(p.name + '<br>' + p.suburb + ' ' + p.state, {
+        direction: 'top', className: 'oracle-tip', offset: [0, -4],
+      })
+      .on('click', () => { hideSearch(); selectPool(p); });
+    if (active) m.openTooltip();
+    _markers.push(m);
+  });
+
+  if (currentPool) _map.setView([currentPool.lat, currentPool.lon], 12, { animate: true });
+  setTimeout(() => _map && _map.invalidateSize(), 100);
+}
+
+function drawSearchMap() {
+  if (typeof L === 'undefined') return;
+  const container = el('search-map-container');
+  if (!container) return;
+
+  if (!_sMap) {
+    _sMap = L.map('search-map-container', { zoomControl: true, attributionControl: false });
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 18 }).addTo(_sMap);
+  }
+
+  _sMarkers.forEach(m => m.remove());
+  _sMarkers = [];
+  _sMarkerMap = new Map();
+
+  POOLS.forEach(p => {
+    const active = currentPool && p.id === currentPool.id;
+    const m = L.marker([p.lat, p.lon], { icon: mkIcon(active) })
+      .addTo(_sMap)
+      .bindTooltip(p.name + '<br>' + p.suburb + ' ' + p.state, {
+        direction: 'top', className: 'oracle-tip', offset: [0, -4],
+      })
+      .on('click', () => selectPool(p));
+    if (active) m.openTooltip();
+    _sMarkers.push(m);
+    _sMarkerMap.set(p.id, m);
+  });
+
+  const zoom = currentPool ? 10 : 6;
+  const centre = currentPool ? [currentPool.lat, currentPool.lon] : [-33.87, 151.21];
+  _sMap.setView(centre, zoom, { animate: false });
+  setTimeout(() => _sMap && _sMap.invalidateSize(), 80);
+}
+
+function toggleHdrFav() {
+  if (!currentPool) return;
+  toggleFav(currentPool.id);
+  const btn = el('hdr-fav');
+  if (btn) {
+    const isFav = getFavs().includes(currentPool.id);
+    btn.textContent = isFav ? '★' : '☆';
+    btn.classList.toggle('starred', isFav);
+  }
+  renderSearchList(el('search-input') ? el('search-input').value : '');
+}
+
+// ── PWA ──────────────────────────────────────────────────────
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  const btn = el('pwa-btn');
+  if (btn) btn.style.display = 'block';
+});
+function installPWA() {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(() => {
+      deferredPrompt = null;
+      const btn = el('pwa-btn');
+      if (btn) btn.style.display = 'none';
+    });
+  }
+}
+// Register service worker for offline support
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(err => log('SW failed:', err));
+}
+
+// ── MAIN ─────────────────────────────────────────────────────
+let busy = false;
+async function doRefresh() {
+  if (busy) return;
+  busy = true;
+  const btn = el('rbtn');
+  if (btn) { btn.disabled=true; btn.textContent='⏳ FETCHING...'; }
+  setMsg('FETCHING LIVE WEATHER...');
+  let d, fetchOk = false;
+  try {
+    d = await fetchWeather();
+    fetchOk = true;
+  } catch(err) {
+    log('Primary fetch failed:', err.message);
+    setMsg('RETRYING...');
+    try {
+      await new Promise(r => setTimeout(r, 2000));
+      d = await fetchWeather();
+      fetchOk = true;
+    } catch(err2) {
+      log('Retry failed:', err2.message);
+      d = makeFallback();
+    }
+  }
+  if (fetchOk) saveCache(d);
+  const errBanner = el('alert-err');
+  if (errBanner) errBanner.className = 'alert-banner alert-err' + (fetchOk ? '' : ' show');
+  render(d);
+  showApp();
+  if (btn) { btn.disabled=false; btn.textContent='▶ REFRESH DATA ◀'; }
+  busy = false;
+}
+
+// ── WINDOW EXPORTS (module scope — required for inline onclick) ──
+window.showTab            = showTab;
+window.doRefresh          = doRefresh;
+window.installPWA         = installPWA;
+window.showSearch         = showSearch;
+window.hideSearch         = hideSearch;
+window.toggleHdrFav      = toggleHdrFav;
+window.renderSearchList   = renderSearchList;
+window.toggleFav          = toggleFav;
+window.selectPool         = selectPool;
+window.copyPoolLink       = copyPoolLink;
+window.scrollToActivePool = scrollToActivePool;
+
+// Module scripts are deferred — DOMContentLoaded fires before the module runs.
+// Use readyState check so init works whether DOM is ready or not.
+function init() {
+  initPool();
+  const cached = loadCache();
+  if (cached) { render(cached); showApp(); }
+  doRefresh();
+  setInterval(doRefresh, 15*60*1000);
+  window.addEventListener('resize', () => {
+    drawTide(new Date(new Date().toLocaleString('en-US',{timeZone: currentPool.timezone})).getHours());
+  });
+}
+if (document.readyState === 'loading') {
+  window.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+</script>
+</body>
+</html>
