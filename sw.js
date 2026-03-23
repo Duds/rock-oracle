@@ -1,4 +1,4 @@
-const CACHE = 'oracle-v1';
+const CACHE = 'oracle-v2';
 const ASSETS = [
   '/',
   '/index.html',
