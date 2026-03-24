@@ -38,9 +38,13 @@ This is Act I.
 
 In the 19th century, strange people came. They arrived in chains, mostly, transported from cold grey countries to a coast of impossible light. They'd never swum. Many had never seen open ocean. The Australian sun was an assault. The surf was alien — loud, white, chaotic, ungovernable.
 
+And then, in 1838, the colonial government passed the NSW Police Act — which banned bathing in the ocean during daylight hours near any public wharf, road, or "place of public resort." The beaches were closed. Not just dangerous — illegal.
+
 So they carved.
 
-They picked up iron tools and drove them into Mara's rock platforms and made themselves smaller waters. Controlled waters. Waters with edges you could see, depths you could trust. Not swimming — not yet. Just a place to sit in water without being taken by it. A shadow from the sun. A respite from the heat of a country they did not choose.
+They picked up iron tools and drove them into Mara's rock platforms and made themselves smaller waters. Controlled waters. Waters with edges you could see, depths you could trust. Not swimming — not yet. Just a place to sit in water without being taken by it. A shadow from the sun. A legal workaround. A respite from the heat of a country they did not choose.
+
+The enclosed harbour baths were the lawful exception. The ocean baths on the rock platform were the other kind of exception — further from the road, less policed, the law unevenly enforced. William Gocher walked into the surf at Manly in October 1902 in defiance of the Act. Manly Council legalised daytime beach swimming in November 1903. After that, the need for carved pools shifted — from legal necessity to preference, to love, to habit.
 
 Mara watched. She didn't understand it at first.
 
