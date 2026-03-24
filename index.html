@@ -118,6 +118,11 @@ header{text-align:center;padding:28px 16px 12px;border-bottom:4px solid var(--cy
 .tpanel{display:none;padding:14px;}.tpanel.active{display:block;}
 #legend-body{font-family:Georgia,serif;font-size:7.5px;line-height:2.2;color:var(--wh);}
 #legend-body p+p{margin-top:10px;}
+.legend-beat{display:inline;white-space:normal;}
+.legend-chip{display:inline-block;font-family:'Press Start 2P',monospace;font-size:4.5px;line-height:1;padding:2px 4px;margin-right:6px;letter-spacing:.6px;vertical-align:middle;border:1px solid currentColor;transform:translateY(-1px);}
+.legend-beat.fact .legend-chip{color:var(--cy);border-color:var(--cy);background:rgba(0,229,255,.08);}
+.legend-beat.myth .legend-chip{color:var(--pk);border-color:var(--pk);background:rgba(255,110,180,.08);}
+.legend-beat + .legend-beat{margin-left:2px;}
 .legend-no-entry{font-size:6px;color:var(--gr);font-family:'Press Start 2P',monospace;}
 
 .sws{display:grid;gap:7px;}
@@ -385,15 +390,50 @@ function renderLegend() {
     return;
   }
 
-  // Split on double newline for paragraphs, otherwise single block
+  // Blend verified + myth in one narrative using inline beat markers.
   const paras = text.trim().split(/\n\n+/);
-  body.innerHTML = paras.map(p => `<p>${p.trim()}</p>`).join('');
+  body.innerHTML = paras.map(renderLegendParagraph).join('');
 
   if (title) title.textContent = '📖 THE DEEP RECORD — ' + currentPool.name.toUpperCase();
   if (footer) {
     const tag = currentPool.natural ? '⛰ NATURAL POOL' : '🪨 OCEAN BATH';
-    footer.textContent = tag + '  ·  ' + currentPool.suburb + ', ' + currentPool.state;
+    footer.textContent = tag + '  ·  ' + currentPool.suburb + ', ' + currentPool.state + '  ·  ◼ VERIFIED  ◉ DEEP RECORD';
   }
+}
+
+function renderLegendParagraph(paragraph) {
+  const p = paragraph.trim();
+  if (!p) return '<p></p>';
+
+  const sentences = splitLegendSentences(p);
+  if (!sentences.length) return `<p>${escapeHtml(p)}</p>`;
+
+  let mythMode = false;
+  const beats = sentences.map((raw) => {
+    const sentence = raw.trim();
+    if (!sentence) return '';
+
+    if (/\bMara\b/i.test(sentence)) mythMode = true;
+    const type = mythMode ? 'myth' : 'fact';
+    const chip = type === 'myth' ? '◉ DEEP RECORD' : '◼ VERIFIED';
+    return `<span class="legend-beat ${type}"><span class="legend-chip">${chip}</span>${escapeHtml(sentence)}</span>`;
+  }).filter(Boolean);
+
+  return `<p>${beats.join(' ')}</p>`;
+}
+
+function splitLegendSentences(text) {
+  const matches = text.match(/[^.!?]+[.!?]+(?:["')\]]+)?|[^.!?]+$/g);
+  return matches ? matches.map(s => s.trim()).filter(Boolean) : [];
+}
+
+function escapeHtml(str) {
+  return str
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
 }
 
 function selectPool(pool) {
