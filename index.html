@@ -116,6 +116,9 @@ header{text-align:center;padding:28px 16px 12px;border-bottom:4px solid var(--cy
 .tbtn{font-family:'Press Start 2P',monospace;font-size:5px;padding:9px 8px;background:transparent;color:var(--gr);border:none;cursor:pointer;border-top:4px solid transparent;border-left:4px solid transparent;border-right:4px solid transparent;transition:all .2s;letter-spacing:1px;}
 .tbtn.active{color:var(--cy);background:var(--md);border-color:var(--cy);border-bottom-color:var(--md);margin-bottom:-4px;}
 .tpanel{display:none;padding:14px;}.tpanel.active{display:block;}
+#legend-body{font-family:Georgia,serif;font-size:7.5px;line-height:2.2;color:var(--wh);}
+#legend-body p+p{margin-top:10px;}
+.legend-no-entry{font-size:6px;color:var(--gr);font-family:'Press Start 2P',monospace;}
 
 .sws{display:grid;gap:7px;}
 .sw{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;padding:9px 10px;background:rgba(0,0,0,.3);border:2px solid rgba(255,255,255,.1);}
@@ -235,6 +238,7 @@ footer{text-align:center;padding:14px;border-top:4px solid var(--cy);font-size:5
         <button class="tbtn active" onclick="showTab(this,'tab-tide')">📈 TIDE</button>
         <button class="tbtn" onclick="showTab(this,'tab-windows')">🏊 WINDOWS</button>
         <button class="tbtn" onclick="showTab(this,'tab-outlook')">📅 7 DAYS</button>
+        <button class="tbtn" onclick="showTab(this,'tab-legend')">📖 LEGEND</button>
         <button class="tbtn" onclick="showTab(this,'tab-map')">🗺 MAP</button>
         <button class="tbtn" onclick="showTab(this,'tab-about')">❓ INFO</button>
       </div>
@@ -251,6 +255,11 @@ footer{text-align:center;padding:14px;border-top:4px solid var(--cy);font-size:5
         <div class="stitle">7-DAY SWIM OUTLOOK</div>
         <div class="outlook-grid" id="outlook-grid"><div style="font-size:7px;color:var(--gr)">CALCULATING...</div></div>
         <div style="font-size:5px;color:var(--gr);margin-top:10px">Based on forecast data for this location. Scores assume current sea temp and typical conditions.</div>
+      </div>
+      <div class="tpanel" id="tab-legend">
+        <div class="stitle" id="legend-title">📖 THE DEEP RECORD</div>
+        <div id="legend-body" style="font-size:7px;line-height:2.2;color:var(--wh);font-family:serif;padding:4px 0;"></div>
+        <div id="legend-footer" style="font-size:5px;color:var(--gr);margin-top:14px;border-top:1px solid var(--bl);padding-top:8px;"></div>
       </div>
       <div class="tpanel" id="tab-map">
         <div class="stitle">🗺 POOL MAP — EAST COAST</div>
@@ -312,6 +321,7 @@ footer{text-align:center;padding:14px;border-top:4px solid var(--cy);font-size:5
 
 <script type="module">
 import { tideAt, TIDES, calcUV, uvLabel, bluebottleRisk, calcScore, getGrade, dirLabel } from './src/lib.js';
+import { LEGENDS } from './src/legends.js';
 import { POOLS, DEFAULT_POOL_ID } from './src/pools.js?v=6';
 
 // ── UTILITIES ────────────────────────────────────────────────
@@ -361,12 +371,38 @@ function updateHeader() {
   }
 }
 
+function renderLegend() {
+  const body   = el('legend-body');
+  const footer = el('legend-footer');
+  const title  = el('legend-title');
+  if (!body || !currentPool) return;
+
+  const text = LEGENDS[currentPool.id];
+  if (!text) {
+    body.innerHTML = '<p class="legend-no-entry">THE DEEP RECORD HAS NOT YET BEEN WRITTEN FOR THIS POOL.</p>';
+    if (footer) footer.textContent = '';
+    if (title)  title.textContent  = '📖 THE DEEP RECORD';
+    return;
+  }
+
+  // Split on double newline for paragraphs, otherwise single block
+  const paras = text.trim().split(/\n\n+/);
+  body.innerHTML = paras.map(p => `<p>${p.trim()}</p>`).join('');
+
+  if (title) title.textContent = '📖 THE DEEP RECORD — ' + currentPool.name.toUpperCase();
+  if (footer) {
+    const tag = currentPool.natural ? '⛰ NATURAL POOL' : '🪨 OCEAN BATH';
+    footer.textContent = tag + '  ·  ' + currentPool.suburb + ', ' + currentPool.state;
+  }
+}
+
 function selectPool(pool) {
   if (currentPool && currentPool.id !== pool.id) addToRecent(currentPool.id);
   currentPool = pool;
   history.pushState(null, '', '?pool=' + pool.id);
   updateHeader();
   hideSearch();
+  renderLegend();
   doRefresh();
 }
 
@@ -901,8 +937,9 @@ function showTab(btn,id){
   document.querySelectorAll('.tpanel').forEach(p=>p.classList.remove('active'));
   btn.classList.add('active');
   el(id).classList.add('active');
-  if(id==='tab-tide') drawTide(new Date(new Date().toLocaleString('en-US',{timeZone: currentPool.timezone})).getHours());
-  if(id==='tab-map') drawMap();
+  if(id==='tab-tide')   drawTide(new Date(new Date().toLocaleString('en-US',{timeZone: currentPool.timezone})).getHours());
+  if(id==='tab-map')    drawMap();
+  if(id==='tab-legend') renderLegend();
 }
 
 // ── POOL MAP ─────────────────────────────────────────────────
@@ -1074,6 +1111,7 @@ window.scrollToActivePool = scrollToActivePool;
 // Use readyState check so init works whether DOM is ready or not.
 function init() {
   initPool();
+  renderLegend();
   const cached = loadCache();
   if (cached) { render(cached); showApp(); }
   doRefresh();
