@@ -149,20 +149,20 @@ header{text-align:center;padding:var(--space-7) var(--space-4) var(--space-3);bo
 .alert-swell{color:var(--rd);border-color:var(--rd);background:rgba(255,48,96,.1);}
 
 /* SEARCH / POOL SELECTOR */
-.search-panel{display:none;position:fixed;inset:0;background:var(--dk);z-index:500;overflow-y:auto;padding:16px;box-sizing:border-box;}
+.search-panel{display:none;position:fixed;inset:0;background:var(--dk);z-index:500;overflow-y:auto;padding:var(--space-4);box-sizing:border-box;}
 .search-panel.open{display:block;}
-.search-hdr{display:flex;gap:8px;align-items:center;margin-bottom:12px;border-bottom:2px solid var(--cy);padding-bottom:12px;}
-#search-input{flex:1;background:var(--md);border:2px solid var(--cy);color:var(--wh);font-family:'Press Start 2P',monospace;font-size:7px;padding:8px 10px;outline:none;}
+.search-hdr{display:flex;gap:var(--space-2);align-items:center;margin-bottom:var(--space-3);border-bottom:4px solid var(--cy);padding-bottom:var(--space-3);}
+#search-input{flex:1;background:var(--md);border:4px solid var(--cy);color:var(--wh);font-family:'Press Start 2P',monospace;font-size:7px;padding:var(--space-2) var(--space-2);outline:none;}
 #search-input::placeholder{color:var(--gr);}
-.search-close{background:none;border:2px solid var(--rd);color:var(--rd);font-family:'Press Start 2P',monospace;font-size:8px;padding:6px 10px;cursor:pointer;}
-.search-sec{font-size:6px;color:var(--gr);letter-spacing:2px;margin:14px 0 6px;}
-.pool-row{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--bl);margin-bottom:3px;cursor:pointer;transition:background .1s;}
+.search-close{background:none;border:4px solid var(--rd);color:var(--rd);font-family:'Press Start 2P',monospace;font-size:8px;padding:var(--space-2) var(--space-2);cursor:pointer;}
+.search-sec{font-size:6px;color:var(--gr);letter-spacing:2px;margin:var(--space-4) 0 var(--space-2);}
+.pool-row{display:flex;align-items:center;gap:var(--space-2);padding:var(--space-2) var(--space-2);border:4px solid var(--bl);margin-bottom:var(--space-1);cursor:pointer;transition:background .1s;}
 .pool-row:hover{border-color:var(--cy);background:var(--md);}
 .pool-row.active{border-color:var(--gn);background:rgba(0,255,136,.08);}
 .pool-row .pr-fav{background:none;border:none;cursor:pointer;font-size:14px;line-height:1;padding:0;flex-shrink:0;}
 .pool-row .pr-name{flex:1;font-size:6px;color:var(--wh);line-height:1.8;}
 .pool-row .pr-loc{font-size:5px;color:var(--gr);flex-shrink:0;text-align:right;line-height:1.8;}
-.pool-row .pr-badge{font-size:5px;color:var(--gn);flex-shrink:0;border:1px solid var(--gn);padding:1px 4px;}
+.pool-row .pr-badge{font-size:5px;color:var(--gn);flex-shrink:0;border:4px solid var(--gn);padding:1px 4px;}
 .pool-row .pr-badge.natural{color:var(--cy);border-color:var(--cy);}
 .pool-row .pr-badge.tide{color:var(--or);border-color:var(--or);}
 #fav-section{display:none;}
@@ -209,15 +209,15 @@ header{text-align:center;padding:var(--space-7) var(--space-4) var(--space-3);bo
 #pwa-btn{display:none;font-family:'Press Start 2P',monospace;font-size:6px;padding:8px 14px;background:var(--dk);color:var(--gn);border:4px solid var(--gn);cursor:pointer;margin:0 auto 8px;letter-spacing:1px;transition:all .15s;}
 #pwa-btn:hover{background:var(--gn);color:var(--dk);}
 
-#ts{text-align:center;font-size:5px;color:var(--gr);padding:6px;}
+#ts{text-align:center;font-size:5px;color:var(--gr);padding:var(--space-2);}
 footer{text-align:center;padding:14px;border-top:4px solid var(--cy);font-size:5px;color:var(--gr);line-height:2.5;}
 .r-epic{color:var(--gn)}.r-great{color:var(--color-grade-great)}.r-ok{color:var(--or)}.r-meh{color:var(--color-grade-meh)}.r-nope{color:var(--rd)}
-.my-pool-btn{font-family:'Press Start 2P',monospace;font-size:6px;padding:6px 10px;background:none;color:var(--gn);border:2px solid var(--gn);cursor:pointer;flex-shrink:0;letter-spacing:1px;transition:all .15s;}
+.my-pool-btn{font-family:'Press Start 2P',monospace;font-size:6px;padding:var(--space-2) var(--space-2);background:none;color:var(--gn);border:4px solid var(--gn);cursor:pointer;flex-shrink:0;letter-spacing:1px;transition:all .15s;}
 .my-pool-btn:hover{background:var(--gn);color:var(--dk);}
 #hdr-fav{background:none;border:none;cursor:pointer;font-size:22px;color:var(--gr);line-height:1;padding:4px 0;transition:color .2s,transform .1s;display:block;margin:2px auto 0;}
 #hdr-fav.starred{color:var(--yw);}
 #hdr-fav:active{transform:scale(1.3);}
-#search-map-container{width:100%;height:260px;margin-bottom:4px;border:2px solid var(--cy);}
+#search-map-container{width:100%;height:260px;margin-bottom:var(--space-1);border:4px solid var(--cy);}
 #copy-link-btn{font-family:'Press Start 2P',monospace;font-size:6px;padding:8px 14px;background:var(--dk);color:var(--pk);border:4px solid var(--pk);cursor:pointer;display:block;margin:0 auto 8px;letter-spacing:1px;transition:all .15s;}
 #copy-link-btn:hover{background:var(--pk);color:var(--dk);}
 #recent-section{display:none;}
