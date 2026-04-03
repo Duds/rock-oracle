@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ROCK ORACLE</title>
 <link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#00e5ff">
+<meta name="theme-color" content="#81ECFF">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ORACLE">
@@ -13,22 +13,73 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css" crossorigin=""/>
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js" crossorigin=""></script>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Crimson+Text:ital@1&display=swap');
 :root {
-  --dk:#0a0e2e; --md:#0d1f4f; --bl:#1a3a7a;
-  --cy:#00e5ff; --gn:#00ff88; --yw:#ffe600;
-  --rd:#ff3060; --or:#ff8c00; --pk:#ff6eb4;
+  /* Abyssal Archive palette — deep teal-slate */
+  --dk:#0A141E; --md:#0F1D2E; --bl:#162A3A;
+  --cy:#81ECFF; --gn:#00ff88; --yw:#FED96C;
+  --rd:#ff3060; --or:#ff8c00; --pk:#587D84;
   --wh:#e8f4ff; --gr:#4a5568;
+
+  /* Typography tokens */
+  --font-pixel:'Press Start 2P',monospace;
+  --font-serif:'Crimson Text',Georgia,serif;
+
+  /* Semantic aliases — used by Stitch-generated code and design token mapping */
+  --color-bg-primary:var(--dk);
+  --color-bg-surface:var(--md);
+  --color-bg-raised:var(--bl);
+  --color-accent-primary:var(--cy);
+  --color-accent-secondary:var(--pk);
+  --color-success:var(--gn);
+  --color-warning:var(--yw);
+  --color-caution:var(--or);
+  --color-danger:var(--rd);
+  --color-text-primary:var(--wh);
+  --color-text-muted:var(--gr);
+
+  /* Spacing scale — 4px base */
+  --space-1:4px;
+  --space-2:8px;
+  --space-3:12px;
+  --space-4:16px;
+  --space-5:20px;
+  --space-6:24px;
+  --space-7:28px;
+
+  /* Alpha/RGB companion tokens */
+  --cy-rgb:129,236,255;
+  --dk-rgb:10,20,30;
+
+  /* Additional semantic tokens */
+  --border-subtle:rgba(255,255,255,.1);
+  --color-grade-great:#ffe600;
+  --color-grade-meh:#ff6eb4;
 }
 *{margin:0;padding:0;box-sizing:border-box;}
 body{background:var(--dk);color:var(--wh);font-family:'Press Start 2P',monospace;font-size:8px;line-height:1.8;overflow-x:hidden;}
 body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,rgba(0,0,0,.09) 0,rgba(0,0,0,.09) 1px,transparent 1px,transparent 3px);pointer-events:none;z-index:9999;}
 
-#loader{position:fixed;inset:0;background:var(--dk);z-index:1000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;transition:opacity .5s;}
-.ltitle{font-size:10px;color:var(--cy);animation:flk 1.5s infinite;}
-.ltrack{width:200px;height:16px;border:4px solid var(--cy);background:var(--dk);overflow:hidden;}
+#loader{position:fixed;inset:0;background:var(--dk);z-index:1000;display:flex;align-items:center;justify-content:center;transition:opacity .5s;}
+.lframe{position:relative;width:min(400px,90vw);padding:40px 32px;border:1px solid rgba(var(--cy-rgb),.25);display:flex;flex-direction:column;align-items:center;gap:20px;}
+.lframe::before,.lframe::after{content:'';position:absolute;width:10px;height:10px;border-color:var(--cy);border-style:solid;opacity:.5;}
+.lframe::before{top:0;left:0;border-width:2px 0 0 2px;}
+.lframe::after{bottom:0;right:0;border-width:0 2px 2px 0;}
+.lwin-label{position:absolute;top:-10px;left:12px;font-size:5px;color:var(--cy);background:var(--dk);padding:0 6px;opacity:.7;}
+.lwave-logo{width:90px;height:54px;filter:drop-shadow(0 0 8px var(--cy));}
+.lwave-logo path{stroke:var(--cy);fill:none;stroke-width:2.5;stroke-linecap:round;}
+.lpool-name{font-size:clamp(10px,2.5vw,14px);color:var(--cy);letter-spacing:4px;animation:flk 5s infinite;text-align:center;}
+.lsubtitle{font-family:var(--font-serif);font-style:italic;font-size:clamp(13px,3vw,17px);color:rgba(var(--cy-rgb),.55);text-align:center;margin-top:-8px;}
+.lterminal{width:100%;background:rgba(var(--dk-rgb),.6);border:1px solid rgba(var(--cy-rgb),.2);padding:14px 16px;display:flex;flex-direction:column;gap:10px;}
+.lterm-hdr{display:flex;justify-content:space-between;font-size:6px;color:var(--cy);letter-spacing:1px;}
+.lterm-hdr .lth-val{color:var(--cy);animation:pb 2s ease-in-out infinite alternate;}
+.llog{border-left:2px solid rgba(var(--cy-rgb),.3);padding-left:10px;display:flex;flex-direction:column;gap:4px;}
+.llog-line{font-size:5.5px;line-height:2;color:var(--gr);transition:color .3s;}
+.llog-line.active{color:var(--cy);}
+.lprog-hdr{display:flex;justify-content:space-between;font-size:6px;color:var(--cy);}
+.ltrack{width:100%;height:8px;background:rgba(0,0,0,.5);overflow:hidden;margin-top:4px;}
 #lb{height:100%;background:var(--cy);width:0%;transition:width .25s;}
-#lm{font-size:6px;color:var(--gr);text-align:center;max-width:260px;line-height:2;}
+.lquote{font-family:var(--font-serif);font-style:italic;font-size:clamp(11px,2.8vw,14px);color:rgba(var(--cy-rgb),.35);text-align:center;line-height:1.7;padding:0 8px;}
 
 #app{opacity:0;transition:opacity .5s;}
 header{text-align:center;padding:28px 16px 12px;border-bottom:4px solid var(--cy);background:linear-gradient(180deg,var(--dk),var(--md));}
@@ -67,7 +118,7 @@ header{text-align:center;padding:28px 16px 12px;border-bottom:4px solid var(--cy
 #fl{font-size:5px;color:var(--gr);margin-top:4px;}
 
 .wgrd{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:8px;}
-.wtile{padding:10px 6px;text-align:center;background:rgba(0,0,0,.3);border:2px solid rgba(255,255,255,.1);transition:border-color .2s;}
+.wtile{padding:10px 6px;text-align:center;background:rgba(0,0,0,.3);border:2px solid var(--border-subtle);transition:border-color .2s;}
 .wtile.warn{border-color:var(--rd);animation:pulse 2s infinite;}
 .wico{font-size:18px;display:block;margin-bottom:6px;}
 .wnm{font-size:5px;color:var(--gr);margin-bottom:4px;}
@@ -79,7 +130,7 @@ header{text-align:center;padding:28px 16px 12px;border-bottom:4px solid var(--cy
 .stitle{font-size:7px;color:var(--yw);margin-bottom:14px;letter-spacing:2px;border-bottom:2px solid var(--yw);padding-bottom:6px;}
 .srow{display:flex;align-items:center;gap:8px;margin:7px 0;}
 .slb2{font-size:5px;color:var(--gr);width:72px;flex-shrink:0;}
-.strack{flex:1;height:10px;background:rgba(0,0,0,.5);border:2px solid rgba(255,255,255,.1);overflow:hidden;}
+.strack{flex:1;height:10px;background:rgba(0,0,0,.5);border:2px solid var(--border-subtle);overflow:hidden;}
 .sfill{height:100%;transition:width 1.2s cubic-bezier(.4,0,.2,1);}
 .sval{font-size:6px;color:var(--wh);width:52px;text-align:right;flex-shrink:0;}
 
@@ -116,7 +167,7 @@ header{text-align:center;padding:28px 16px 12px;border-bottom:4px solid var(--cy
 .tbtn{font-family:'Press Start 2P',monospace;font-size:5px;padding:9px 8px;background:transparent;color:var(--gr);border:none;cursor:pointer;border-top:4px solid transparent;border-left:4px solid transparent;border-right:4px solid transparent;transition:all .2s;letter-spacing:1px;}
 .tbtn.active{color:var(--cy);background:var(--md);border-color:var(--cy);border-bottom-color:var(--md);margin-bottom:-4px;}
 .tpanel{display:none;padding:14px;}.tpanel.active{display:block;}
-#legend-body{font-family:Georgia,serif;font-size:7.5px;line-height:2.2;color:var(--wh);}
+#legend-body{font-family:var(--font-serif);font-size:7.5px;line-height:2.2;color:var(--wh);}
 #legend-body p+p{margin-top:10px;}
 .legend-beat{display:inline;white-space:normal;}
 .legend-chip{display:inline-block;font-family:'Press Start 2P',monospace;font-size:4.5px;line-height:1;padding:2px 4px;margin-right:6px;letter-spacing:.6px;vertical-align:middle;border:1px solid currentColor;transform:translateY(-1px);}
@@ -126,14 +177,14 @@ header{text-align:center;padding:28px 16px 12px;border-bottom:4px solid var(--cy
 .legend-no-entry{font-size:6px;color:var(--gr);font-family:'Press Start 2P',monospace;}
 
 .sws{display:grid;gap:7px;}
-.sw{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;padding:9px 10px;background:rgba(0,0,0,.3);border:2px solid rgba(255,255,255,.1);}
+.sw{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;padding:9px 10px;background:rgba(0,0,0,.3);border:2px solid var(--border-subtle);}
 .stm{font-size:7px;color:var(--yw);}
 .sdsc{font-size:5px;color:var(--gr);line-height:1.8;}
 .sbdg{font-size:8px;padding:4px 5px;border:2px solid currentColor;text-align:center;min-width:40px;}
 
 /* 7-DAY OUTLOOK */
 .outlook-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;}
-.outlook-day{padding:10px 8px;background:rgba(0,0,0,.3);border:2px solid rgba(255,255,255,.1);text-align:center;}
+.outlook-day{padding:10px 8px;background:rgba(0,0,0,.3);border:2px solid var(--border-subtle);text-align:center;}
 .outlook-date{font-size:5px;color:var(--gr);margin-bottom:6px;}
 .outlook-score{font-size:18px;font-weight:bold;margin:4px 0;}
 .outlook-grade{font-size:5px;margin-bottom:6px;}
@@ -146,6 +197,8 @@ header{text-align:center;padding:28px 16px 12px;border-bottom:4px solid var(--cy
 .rbtn{font-family:'Press Start 2P',monospace;font-size:7px;padding:10px 16px;background:var(--dk);color:var(--cy);border:4px solid var(--cy);cursor:pointer;display:block;margin:14px auto;transition:all .15s;letter-spacing:1px;}
 .rbtn:hover{background:var(--cy);color:var(--dk);transform:translate(-2px,-2px);box-shadow:4px 4px 0 var(--bl);}
 .rbtn:disabled{opacity:.5;cursor:wait;}
+.rbtn--yellow{color:var(--yw);border-color:var(--yw);}
+.rbtn--yellow:hover{background:var(--yw)}
 
 /* PWA INSTALL BUTTON */
 #pwa-btn{display:none;font-family:'Press Start 2P',monospace;font-size:6px;padding:8px 14px;background:var(--dk);color:var(--gn);border:4px solid var(--gn);cursor:pointer;margin:0 auto 8px;letter-spacing:1px;transition:all .15s;}
@@ -153,7 +206,7 @@ header{text-align:center;padding:28px 16px 12px;border-bottom:4px solid var(--cy
 
 #ts{text-align:center;font-size:5px;color:var(--gr);padding:6px;}
 footer{text-align:center;padding:14px;border-top:4px solid var(--cy);font-size:5px;color:var(--gr);line-height:2.5;}
-.r-epic{color:#00ff88}.r-great{color:#ffe600}.r-ok{color:#ff8c00}.r-meh{color:#ff6eb4}.r-nope{color:#ff3060}
+.r-epic{color:var(--gn)}.r-great{color:var(--color-grade-great)}.r-ok{color:var(--or)}.r-meh{color:var(--color-grade-meh)}.r-nope{color:var(--rd)}
 .my-pool-btn{font-family:'Press Start 2P',monospace;font-size:6px;padding:6px 10px;background:none;color:var(--gn);border:2px solid var(--gn);cursor:pointer;flex-shrink:0;letter-spacing:1px;transition:all .15s;}
 .my-pool-btn:hover{background:var(--gn);color:var(--dk);}
 #hdr-fav{background:none;border:none;cursor:pointer;font-size:22px;color:var(--gr);line-height:1;padding:4px 0;transition:color .2s,transform .1s;display:block;margin:2px auto 0;}
@@ -172,10 +225,36 @@ footer{text-align:center;padding:14px;border-top:4px solid var(--cy);font-size:5
 <body>
 
 <div id="loader">
-  <div class="ltitle">ROCK ORACLE</div>
-  <div style="font-size:36px;animation:wb .8s ease-in-out infinite">🌊</div>
-  <div class="ltrack"><div id="lb"></div></div>
-  <div id="lm">INITIALISING...</div>
+  <div class="lframe">
+    <div class="lwin-label">Abyssal Loader</div>
+
+    <svg class="lwave-logo" viewBox="0 0 90 54">
+      <path d="M4,13 C13,4 22,22 31,13 C40,4 49,22 58,13 C67,4 76,22 85,13"/>
+      <path d="M4,27 C13,18 22,36 31,27 C40,18 49,36 58,27 C67,18 76,36 85,27"/>
+      <path d="M4,41 C13,32 22,50 31,41 C40,32 49,50 58,41 C67,32 76,50 85,41"/>
+    </svg>
+
+    <div class="lpool-name" id="lpool-name">ROCK ORACLE</div>
+    <div class="lsubtitle">Deep Sea Research Station</div>
+
+    <div class="lterminal">
+      <div class="lterm-hdr">
+        <span>SYSTEM_STATE:</span>
+        <span class="lth-val">OPERATIONAL</span>
+      </div>
+      <div class="llog">
+        <div class="llog-line active" id="lm1">Initializing ghostly_protocol.sh...</div>
+        <div class="llog-line" id="lm2">Syncing tide data...</div>
+        <div class="llog-line" id="lm3">Establishing secure abyss link...</div>
+      </div>
+      <div>
+        <div class="lprog-hdr"><span>DATA_PACKETS</span><span id="lpct">0%</span></div>
+        <div class="ltrack"><div id="lb"></div></div>
+      </div>
+    </div>
+
+    <div class="lquote">"The water doesn't forget. It only archives the silence of the depths."</div>
+  </div>
 </div>
 
 <div id="app">
@@ -263,7 +342,7 @@ footer{text-align:center;padding:14px;border-top:4px solid var(--cy);font-size:5
       </div>
       <div class="tpanel" id="tab-legend">
         <div class="stitle" id="legend-title">📖 THE DEEP RECORD</div>
-        <div id="legend-body" style="font-size:7px;line-height:2.2;color:var(--wh);font-family:serif;padding:4px 0;"></div>
+        <div id="legend-body" style="font-size:7px;line-height:2.2;color:var(--wh);padding:4px 0;"></div>
         <div id="legend-footer" style="font-size:5px;color:var(--gr);margin-top:14px;border-top:1px solid var(--bl);padding-top:8px;"></div>
       </div>
       <div class="tpanel" id="tab-map">
@@ -293,7 +372,7 @@ footer{text-align:center;padding:14px;border-top:4px solid var(--cy);font-size:5
 
     <button id="pwa-btn" onclick="installPWA()">📱 ADD TO HOME SCREEN</button>
     <button class="rbtn" id="rbtn" onclick="doRefresh()">▶ REFRESH DATA ◀</button>
-    <button class="rbtn" onclick="showSearch()" style="border-color:var(--yw);color:var(--yw);">⌕ CHANGE POOL</button>
+    <button class="rbtn rbtn--yellow" onclick="showSearch()">⌕ CHANGE POOL</button>
     <button id="copy-link-btn" onclick="copyPoolLink()">⎘ COPY LINK</button>
     <div id="ts">LAST UPDATE: --</div>
   </div>
@@ -617,12 +696,25 @@ function copyPoolLink() {
 
 // ── LOADER ───────────────────────────────────────────────────
 let lbPct = 0;
-const lbIv = setInterval(() => { lbPct = Math.min(lbPct+8, 85); el('lb').style.width = lbPct+'%'; }, 300);
-const setMsg = m => { const e = el('lm'); if (e) e.textContent = m; };
+const lbIv = setInterval(() => {
+  lbPct = Math.min(lbPct+8, 85);
+  el('lb').style.width = lbPct+'%';
+  const pctEl = el('lpct'); if (pctEl) pctEl.textContent = Math.round(lbPct)+'%';
+  ['lm1','lm2','lm3'].forEach((id, i) => {
+    const line = el(id); if (!line) return;
+    const threshold = i === 0 ? 0 : i === 1 ? 30 : 60;
+    const next = i === 2 ? 101 : (i === 0 ? 30 : 60);
+    line.classList.toggle('active', lbPct >= threshold && lbPct < next);
+  });
+}, 300);
+const setMsg = m => {
+  const e = el('lm2'); if (e) e.textContent = m;
+};
 
 function showApp() {
   clearInterval(lbIv);
   el('lb').style.width = '100%';
+  const pctEl = el('lpct'); if (pctEl) pctEl.textContent = '100%';
   setTimeout(() => {
     el('loader').style.opacity = '0';
     el('app').style.opacity = '1';
@@ -642,9 +734,9 @@ setTimeout(showApp, 12000);
     for (let x = 0; x < W; x += 4) {
       const y1 = H/2 + Math.sin((x/18)+t)*7 + Math.sin((x/9)+t*1.5)*3;
       const y2 = H/2 + Math.sin((x/18)+t+1)*7 + 5;
-      ctx.fillStyle = '#1a3a7a'; ctx.fillRect(x, y1, 4, H-y1);
-      ctx.fillStyle = '#0d1f4f'; ctx.fillRect(x, y2, 4, H-y2);
-      if (Math.sin((x/7)+t*2) > 0.85) { ctx.fillStyle = '#00e5ff'; ctx.fillRect(x, Math.floor(y1/4)*4, 4, 4); }
+      ctx.fillStyle = '#162A3A'; ctx.fillRect(x, y1, 4, H-y1);
+      ctx.fillStyle = '#0F1D2E'; ctx.fillRect(x, y2, 4, H-y2);
+      if (Math.sin((x/7)+t*2) > 0.85) { ctx.fillStyle = '#81ECFF'; ctx.fillRect(x, Math.floor(y1/4)*4, 4, 4); }
     }
     t += 0.05; requestAnimationFrame(f);
   })();
@@ -657,7 +749,7 @@ function drawTide(curHour) {
   const H = 150;
   canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#050a1a'; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#0A141E'; ctx.fillRect(0, 0, W, H);
   const mn = Math.min(...TIDES)-0.1, mx = Math.max(...TIDES)+0.1, rng = mx-mn;
   const pad = 20, cW = W-pad*2, cH = H-pad*2;
   for (let i=0;i<=4;i++){const y=pad+(i/4)*cH;for(let x=0;x<W;x+=4){ctx.fillStyle='rgba(255,255,255,.04)';ctx.fillRect(x,Math.round(y),2,1);}}
