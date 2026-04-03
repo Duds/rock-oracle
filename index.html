@@ -82,9 +82,9 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 .lquote{font-family:var(--font-serif);font-style:italic;font-size:clamp(11px,2.8vw,14px);color:rgba(var(--cy-rgb),.35);text-align:center;line-height:1.7;padding:0 8px;}
 
 #app{opacity:0;transition:opacity .5s;}
-header{text-align:center;padding:28px 16px 12px;border-bottom:4px solid var(--cy);background:linear-gradient(180deg,var(--dk),var(--md));}
-.waves{display:flex;justify-content:center;gap:4px;margin-bottom:14px;}
-.wave{width:8px;height:8px;background:var(--cy);animation:wb .6s ease-in-out infinite;}
+header{text-align:center;padding:var(--space-7) var(--space-4) var(--space-3);border-bottom:4px solid var(--cy);background:linear-gradient(180deg,var(--dk),var(--md));}
+.waves{display:flex;justify-content:center;gap:var(--space-1);margin-bottom:14px;}
+.wave{width:var(--space-2);height:var(--space-2);background:var(--cy);animation:wb .6s ease-in-out infinite;}
 .wave:nth-child(2n){background:var(--bl);}
 .wave:nth-child(1){animation-delay:0s}.wave:nth-child(2){animation-delay:.1s}.wave:nth-child(3){animation-delay:.2s}
 .wave:nth-child(4){animation-delay:.3s}.wave:nth-child(5){animation-delay:.4s}.wave:nth-child(6){animation-delay:.5s}
@@ -97,7 +97,7 @@ header{text-align:center;padding:28px 16px 12px;border-bottom:4px solid var(--cy
 .t1{font-size:clamp(11px,2.8vw,20px);color:var(--cy);text-shadow:4px 4px 0 var(--bl);letter-spacing:2px;animation:flk 5s infinite;}
 .t2{font-size:7px;color:var(--yw);margin-top:8px;letter-spacing:3px;}
 .t3{font-size:5px;color:var(--gr);margin-top:6px;}
-#wcanvas{display:block;margin:10px auto 0;}
+#wcanvas{display:block;margin:10px auto 0;width:min(320px,100%);height:40px;}
 
 .grid{max-width:1100px;margin:0 auto;padding:24px 16px;display:grid;gap:24px;}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:24px;}
@@ -106,16 +106,21 @@ header{text-align:center;padding:28px 16px 12px;border-bottom:4px solid var(--cy
 .pbox{border:4px solid var(--cy);box-shadow:0 0 0 4px var(--dk),0 0 0 8px var(--cy);background:var(--md);}
 .ybox{border:4px solid var(--yw);box-shadow:0 0 0 4px var(--dk),0 0 0 8px var(--yw);background:var(--md);}
 
-.scard{padding:20px;text-align:center;}
+.scard{padding:var(--space-5);text-align:center;}
 .slbl{font-size:6px;color:var(--gr);letter-spacing:2px;margin-bottom:10px;}
 #semo{font-size:40px;margin:6px 0;display:block;}
 #snum{font-size:clamp(36px,8vw,64px);line-height:1;margin:6px 0;display:block;color:var(--cy);}
 #sgrd{font-size:clamp(10px,2.5vw,18px);margin:6px 0;letter-spacing:2px;display:block;}
-#svrd{font-size:7px;line-height:2;margin-top:10px;padding:8px;background:rgba(0,0,0,.3);border-left:4px solid var(--cy);min-height:48px;}
+#svrd{font-size:7px;line-height:2;margin-top:10px;padding:var(--space-2);background:rgba(0,0,0,.3);border-left:4px solid var(--cy);min-height:48px;font-family:var(--font-serif);font-style:italic;}
 .fmtr{display:flex;gap:3px;justify-content:center;flex-wrap:wrap;margin:10px 0;}
 .fb{width:14px;height:14px;background:var(--gr);}
 .fb.lit{animation:pb 1s ease-in-out infinite alternate;}
-#fl{font-size:5px;color:var(--gr);margin-top:4px;}
+#fl{font-size:5px;color:var(--gr);margin-top:var(--space-1);}
+
+.blink-cursor{animation:blk 1s step-end infinite;}
+
+.scard-fun{margin-top:var(--space-3);}
+.scard-fun .slbl{margin-bottom:var(--space-2);}
 
 .wgrd{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:8px;}
 .wtile{padding:10px 6px;text-align:center;background:rgba(0,0,0,.3);border:2px solid var(--border-subtle);transition:border-color .2s;}
@@ -267,7 +272,7 @@ footer{text-align:center;padding:14px;border-top:4px solid var(--cy);font-size:5
     <div id="pool-sub" class="t2">★ LOADING... ★</div>
     <div id="pool-loc" class="t3">-- | --</div>
     <button id="hdr-fav" onclick="window.toggleHdrFav()" title="Favourite this pool">☆</button>
-    <canvas id="wcanvas" width="320" height="40" style="width:min(320px,100%);height:40px;"></canvas>
+    <canvas id="wcanvas" width="320" height="40"></canvas>
   </header>
 
   <div class="grid">
@@ -285,10 +290,10 @@ footer{text-align:center;padding:14px;border-top:4px solid var(--cy);font-size:5
         <div class="slbl">▶ SWIM ORACLE ◀</div>
         <span id="semo">🏊</span>
         <span id="snum">--</span>
-        <span id="sgrd">LOADING<span style="animation:blk 1s step-end infinite">_</span></span>
+        <span id="sgrd">LOADING<span class="blink-cursor">_</span></span>
         <div id="svrd">CONSULTING THE ORACLE...</div>
-        <div style="margin-top:12px">
-          <div class="slbl" style="margin-bottom:6px">FUN INDEX</div>
+        <div class="scard-fun">
+          <div class="slbl">FUN INDEX</div>
           <div class="fmtr" id="fm"></div>
           <div id="fl">CALCULATING...</div>
         </div>
