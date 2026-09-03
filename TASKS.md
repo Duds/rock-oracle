@@ -43,3 +43,7 @@ Tiered task list for the project. Context notes aid session continuity.
 ## ARCHIVE
 
 (none)
+
+## EVENTS
+
+- 2026-09-03: Migrated from ~/20-INDIE to ~/00-PERSONAL/projects/ (indie domain dissolved, task 20260829-025)
