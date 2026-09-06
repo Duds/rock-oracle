@@ -1053,7 +1053,8 @@ function render(d) {
     const {total:t}=calcScore({...d,h});
     const td=tideHeights[h]||1;
     // Score gate is LAT-tuned for the model; live is MSL datum (shifted), so stay neutral
-    // until wayfinder #7 defines datum-aware scoring. Model path keeps prior behaviour.
+    // until wayfinder #9 defines datum-aware scoring (see docs/tide-behaviour-contract.md D2).
+    // Model path keeps prior behaviour.
     const adj = (tideSrc === 'LIVE') ? 0 : (td>0.5&&td<1.4?5:-3);
     wins.push({h,s:Math.min(100,Math.max(0,t+adj)),td});
   }
