@@ -72,11 +72,11 @@ All core calculations are testable functions with deterministic behavior. Tests 
 - **Alert:** Triggers at UV ≥6
 
 ### Bluebottle Risk
-- **Function:** `bluebottleRisk(windDir, windSpeed, onshoreWind)`
+- **Function:** `bluebottleRisk(windDir, windSpeed, onshoreWind, windGust)`
 - **Pool Parameter:** Each pool has `onshoreWind: {min: deg, max: deg}` defining dangerous directions
   - Example: Mahon Pool (east-facing) = `{min: 22, max: 158}` (NE to SE)
   - Harbour pools = `{min: 0, max: 0}` (always LOW)
-- **Logic:** HIGH (risk=3) if onshore + windSpeed ≥ 15; MEDIUM (risk=2) if onshore only; LOW (risk=1) otherwise
+- **Logic:** HIGH (risk=3) if onshore + (windSpeed ≥ 15 **or** windGust ≥ 30); MEDIUM (risk=2) if onshore only; LOW (risk=1) otherwise
 - **Return:** `{text, cls, risk}` — used for color-coding and alerts
 
 ### Swim Score (0–100)

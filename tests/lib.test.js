@@ -114,6 +114,27 @@ describe('bluebottleRisk', () => {
   it('harbour pool (min:0, max:0) → always LOW regardless of wind', () => {
     expect(bluebottleRisk(90, 50, { min: 0, max: 0 }).text).toBe('LOW');
   });
+
+  it('onshore light wind + strong gust (30) → HIGH risk=3', () => {
+    const r = bluebottleRisk(90, 10, { min: 22, max: 158 }, 30);
+    expect(r.text).toBe('HIGH');
+    expect(r.risk).toBe(3);
+  });
+
+  it('onshore light wind + gust below threshold (< 30) → MEDIUM risk=2', () => {
+    const r = bluebottleRisk(90, 10, { min: 22, max: 158 }, 29);
+    expect(r.text).toBe('MEDIUM');
+    expect(r.risk).toBe(2);
+  });
+
+  it('offshore wind + strong gust → LOW (direction still gates)', () => {
+    const r = bluebottleRisk(270, 10, { min: 22, max: 158 }, 50);
+    expect(r.text).toBe('LOW');
+  });
+
+  it('defaults windGust to 0 (backward compatible)', () => {
+    expect(bluebottleRisk(90, 10).risk).toBe(2);
+  });
 });
 
 // ── calcScore ────────────────────────────────────────────────

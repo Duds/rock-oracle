@@ -29,12 +29,13 @@ export function uvLabel(uv) {
 }
 
 // ── BLUEBOTTLE RISK ──────────────────────────────────────────
-export function bluebottleRisk(windDir, windSpeed, onshoreWind = { min: 22, max: 158 }) {
+export function bluebottleRisk(windDir, windSpeed, onshoreWind = { min: 22, max: 158 }, windGust = 0) {
   // onshoreWind defines the wind direction range that pushes bluebottles toward this pool.
   // Harbour pools use { min: 0, max: 0 } — always LOW (no open-ocean swell exposure).
+  // windGust (km/h, optional) captures peaks: strong gusts (> 30) alone push MEDIUM → HIGH.
   if (onshoreWind.min === 0 && onshoreWind.max === 0) return { text: 'LOW', cls: 'ok', risk: 1 };
   const onshore = (windDir >= onshoreWind.min && windDir <= onshoreWind.max);
-  const strong  = windSpeed >= 15;
+  const strong  = windSpeed >= 15 || windGust >= 30;
   if (onshore && strong)  return {text:'HIGH',   cls:'danger',  risk:3};
   if (onshore)            return {text:'MEDIUM', cls:'caution', risk:2};
   return                         {text:'LOW',    cls:'ok',      risk:1};
