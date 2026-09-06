@@ -34,7 +34,7 @@ This is a **self-contained vanilla HTML/CSS/JS app** (no frameworks, no build st
 
 | Module | Purpose | Key Exports |
 |--------|---------|-------------|
-| `src/lib.js` | Core algorithms: tide harmonic model, UV calculation, bluebottle risk, scoring system, WeatherSnapshot normaliser | `tideAt()`, `calcUV()`, `bluebottleRisk()`, `calcScore()`, `getGrade()`, `normaliseSnapshot()`, `SNAPSHOT_VERSION` |
+| `src/lib.js` | Core algorithms: tide harmonic model, UV calculation, bluebottle risk, scoring system, WeatherSnapshot normaliser, tide mode/predicate | `tideAt()`, `calcUV()`, `bluebottleRisk()`, `calcScore()`, `getGrade()`, `normaliseSnapshot()`, `SNAPSHOT_VERSION`, `tideMode()`, `tideState()` |
 | `src/pools.js` | Ocean pool database (40+ pools across QLD/NSW/VIC) with metadata | `POOLS` array, `POOL_GROUPS` |
 | `src/legends.js` | Pool-specific legend narratives (history, myths, local knowledge) | `LEGENDS` object (keyed by pool ID) |
 | `src/store.js` | Persistence seam: favourites/recents/weather cache, injectable storage, versioned envelopes, staleness tiers | `createFavs()`, `createRecents()`, `createWeatherCache()` |

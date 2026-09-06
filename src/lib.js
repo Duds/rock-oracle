@@ -120,3 +120,56 @@ export function normaliseSnapshot(raw) {
     tide:    normaliseTide(r.tide),
   };
 }
+
+// ── TIDE MODE + PREDICATE (wayfinder #9) ─────────────────────
+// Normalises the loaded tideDependent field to a typed mode (#7 D1):
+//   true  -> 'low'  (best within ~2h of low tide)
+//   'high'-> 'high' (fills from surf, best near high tide)
+//   false/undefined/other -> 'none'
+export function tideMode(pool) {
+  const t = pool && pool.tideDependent;
+  if (t === 'high') return 'high';
+  if (t === true)   return 'low';
+  return 'none';
+}
+
+// Local extrema of a day-aligned hourly curve (index = pool-local hour 0..24).
+export function tideExtremes(curve) {
+  if (!Array.isArray(curve) || curve.length < 3) return [];
+  const out = [];
+  for (let i = 1; i <= 23; i++) {
+    const p = curve[i - 1], c = curve[i], n = curve[i + 1];
+    if (c < p && c <= n)      out.push({ type: 'low',  index: i, height: c });
+    else if (c > p && c >= n) out.push({ type: 'high', index: i, height: c });
+  }
+  return out;
+}
+
+// Minute-distance to the nearest extreme of `type`, wrapping the 24 h day cycle.
+function nearestExtreme(extremes, type, hour) {
+  const dist = (i) => { const a = Math.abs(hour - i); return Math.min(a, 24 - a); };
+  let best = null, bestMin = Infinity;
+  for (const e of extremes) {
+    if (e.type !== type) continue;
+    const m = dist(e.index) * 60;
+    if (m < bestMin) { bestMin = m; best = e; }
+  }
+  return best ? { event: best, minutes: bestMin } : null;
+}
+
+// Datum-invariant tide predicate. For a 'low' pool it is favourable within lowWindow
+// minutes of a low tide; for 'high', within highWindow of a high tide. Thresholds are
+// minutes to the nearest relevant extreme, so no datum (LAT vs MSL) is assumed.
+// Returns { favourable: boolean|null, nearest: {event, minutes}|null }.
+//   favourable null = mode 'none', no extreme found, or no valid curve (degraded).
+export function tideState(curve, hour, mode, { lowWindow = 120, highWindow = 120 } = {}) {
+  if (mode === 'none' || !Array.isArray(curve) || curve.length < 25) {
+    return { favourable: null, nearest: null };
+  }
+  const extremes = tideExtremes(curve);
+  const target = mode === 'high' ? 'high' : 'low';
+  const near = nearestExtreme(extremes, target, hour);
+  const win = mode === 'high' ? highWindow : lowWindow;
+  const favourable = near ? near.minutes <= win : null;
+  return { favourable, nearest: near };
+}

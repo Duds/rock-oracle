@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { tideAt, TIDES, calcUV, uvLabel, bluebottleRisk, calcScore, getGrade, dirLabel, normaliseSnapshot, SNAPSHOT_VERSION } from '../src/lib.js';
+import { tideAt, TIDES, calcUV, uvLabel, bluebottleRisk, calcScore, getGrade, dirLabel, normaliseSnapshot, SNAPSHOT_VERSION, tideMode, tideState, tideExtremes } from '../src/lib.js';
 
 // ── tideAt ───────────────────────────────────────────────────
 describe('tideAt', () => {
@@ -252,5 +252,60 @@ describe('normaliseSnapshot', () => {
   it('converts a syd string back into a Date (cache round-trip)', () => {
     const s = normaliseSnapshot({ h: 10, syd: '2026-09-07T05:00:00.000Z', wind: 5, at: 21, cc: 30, st: 20 });
     expect(s.syd instanceof Date).toBe(true);
+  });
+});
+
+// ── tideMode / tideState / tideExtremes (wayfinder #9) ──────
+describe('tideMode', () => {
+  it('true → low, high → high, false/undefined → none', () => {
+    expect(tideMode({ tideDependent: true })).toBe('low');
+    expect(tideMode({ tideDependent: 'high' })).toBe('high');
+    expect(tideMode({ tideDependent: false })).toBe('none');
+    expect(tideMode({})).toBe('none');
+    expect(tideMode(null)).toBe('none');
+  });
+});
+
+// One high at index 6, one low at index 18 (a single clean wave).
+function sineWave() { return Array.from({ length: 25 }, (_, i) => Math.sin((i / 24) * 2 * Math.PI)); }
+
+describe('tideExtremes', () => {
+  it('finds exactly one high (6) and one low (18) on a clean sine day', () => {
+    const ex = tideExtremes(sineWave());
+    const highs = ex.filter((e) => e.type === 'high').map((e) => e.index);
+    const lows = ex.filter((e) => e.type === 'low').map((e) => e.index);
+    expect(highs).toContain(6);
+    expect(lows).toContain(18);
+    expect(ex).toHaveLength(2);
+  });
+  it('returns empty for a too-short curve', () => {
+    expect(tideExtremes([1, 2])).toEqual([]);
+    expect(tideExtremes(null)).toEqual([]);
+  });
+});
+
+describe('tideState', () => {
+  const c = sineWave();
+  it('low mode is favourable within 120 min of a low tide, unfavourable far from it', () => {
+    expect(tideState(c, 18, 'low').favourable).toBe(true);
+    expect(tideState(c, 19, 'low').favourable).toBe(true);
+    expect(tideState(c, 16, 'low').favourable).toBe(true);   // exactly 2 h → boundary inclusive
+    expect(tideState(c, 15.5, 'low').favourable).toBe(false);
+    expect(tideState(c, 6, 'low').favourable).toBe(false);   // midday, far from low
+    expect(tideState(c, 18, 'low').nearest.minutes).toBe(0);
+  });
+  it('high mode mirrors: favourable near high tide', () => {
+    expect(tideState(c, 6, 'high').favourable).toBe(true);
+    expect(tideState(c, 7, 'high').favourable).toBe(true);
+    expect(tideState(c, 18, 'high').favourable).toBe(false); // near low → bad for fill pools
+  });
+  it('respects a custom lowWindow', () => {
+    expect(tideState(c, 17, 'low', { lowWindow: 60 }).favourable).toBe(true);  // 1h
+    expect(tideState(c, 16, 'low', { lowWindow: 60 }).favourable).toBe(false); // 2h > 60
+  });
+  it('none mode or missing curve returns favourable null (degraded, no penalty)', () => {
+    expect(tideState(c, 18, 'none').favourable).toBe(null);
+    expect(tideState([1, 2], 10, 'low').favourable).toBe(null);
+    expect(tideState(c, 18, 'low').nearest).not.toBe(null);
   });
 });

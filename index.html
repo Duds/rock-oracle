@@ -133,6 +133,7 @@ header{text-align:center;padding:var(--space-7) var(--space-4) var(--space-3);bo
 .wvl.ok{color:var(--gn);}
 
 .stitle{font-size:7px;color:var(--yw);margin-bottom:var(--space-3);letter-spacing:2px;border-bottom:4px solid var(--yw);padding-bottom:var(--space-1);}
+.tide-meta{font-size:5px;color:var(--gr);text-align:center;letter-spacing:1px;margin:var(--space-1) 0 var(--space-2);min-height:6px;}
 .srow{display:flex;align-items:center;gap:var(--space-2);margin:var(--space-1) 0;}
 .slb2{font-size:5px;color:var(--gr);width:72px;flex-shrink:0;}
 .strack{flex:1;height:var(--space-2);background:rgba(0,0,0,.5);border:4px solid var(--border-subtle);overflow:hidden;}
@@ -336,6 +337,8 @@ footer{text-align:center;padding:var(--space-4);border-top:4px solid var(--cy);f
       </div>
       <div class="tpanel active" id="tab-tide">
         <div class="stitle" id="tide-title">24H TIDE FORECAST</div>
+        <div class="tide-meta" id="tide-meta"></div>
+        <div class="tide-meta" id="tide-meta"></div>
         <canvas id="tide-canvas" style="width:100%;height:150px;display:block"></canvas>
         <div style="font-size:5px;color:var(--gr);text-align:center;margin-top:4px">■ SEA LEVEL (m) | ░ CURRENT HOUR</div>
       </div>
@@ -414,7 +417,7 @@ footer{text-align:center;padding:var(--space-4);border-top:4px solid var(--cy);f
 </div>
 
 <script type="module">
-import { TIDES, calcUV, uvLabel, bluebottleRisk, calcScore, getGrade, dirLabel, normaliseSnapshot, SNAPSHOT_VERSION } from './src/lib.js';
+import { TIDES, calcUV, uvLabel, bluebottleRisk, calcScore, getGrade, dirLabel, normaliseSnapshot, SNAPSHOT_VERSION, tideMode, tideState } from './src/lib.js';
 import { createFavs, createRecents, createWeatherCache } from './src/store.js';
 import { LEGENDS } from './src/legends.js';
 import { POOLS, DEFAULT_POOL_ID } from './src/pools.js?v=6';
@@ -758,9 +761,33 @@ function drawTide(curHour) {
   canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = '#0A141E'; ctx.fillRect(0, 0, W, H);
+  // Next high/low extremes + datum-aware caption.
+  const meta = el('tide-meta');
+  if (meta) {
+    const ex = tideExtremes(tideHeights).filter(e => e.index >= curHour - 1)
+                .sort((a,b) => a.index - b.index);
+    const fmt = (i) => { const hh = Math.floor(i), mm = Math.round((i - hh) * 60);
+      return String(hh % 24).padStart(2,'0') + ':' + String(mm).padStart(2,'0'); };
+    const hi = ex.find(e => e.type === 'high');
+    const lo = ex.find(e => e.type === 'low');
+    const parts = [];
+    if (hi) parts.push('HI ' + fmt(hi.index) + ' ' + hi.height.toFixed(2) + 'm');
+    if (lo) parts.push('LO ' + fmt(lo.index) + ' ' + lo.height.toFixed(2) + 'm');
+    meta.textContent = parts.join('  •  ');
+  }
   const mn = Math.min(...tideHeights)-0.1, mx = Math.max(...tideHeights)+0.1, rng = mx-mn;
   const pad = 20, cW = W-pad*2, cH = H-pad*2;
   for (let i=0;i<=4;i++){const y=pad+(i/4)*cH;for(let x=0;x<W;x+=4){ctx.fillStyle='rgba(255,255,255,.04)';ctx.fillRect(x,Math.round(y),2,1);}}
+  // No-go shading (datum-invariant predicate, #9 D2) — unfavourable hours per the pool's tide mode.
+  const shadeMode = (currentPool && currentPool.natural) ? tideMode(currentPool) : 'none';
+  if (shadeMode !== 'none') {
+    ctx.fillStyle = 'rgba(255,48,96,.07)';
+    for (let h=0; h<=23; h++) {
+      if (tideState(tideHeights, h + 0.5, shadeMode).favourable === false) {
+        ctx.fillRect(Math.round(pad + (h/24)*cW), pad, Math.round(cW/24) + 1, cH);
+      }
+    }
+  }
   ctx.fillStyle='rgba(0,229,255,.10)';
   ctx.fillRect(Math.round(pad+(curHour/24)*cW),pad,Math.max(3,(1/24)*cW),cH);
   const pts = tideHeights.map((v,i)=>({x:Math.round(pad+(i/24)*cW),y:Math.round(pad+((1-(v-mn)/rng))*cH)}));
@@ -801,7 +828,7 @@ function getVerdict(n) {
   const isNatural = currentPool && currentPool.natural;
   let k;
   if (n <= 12 && isNatural && currentPool.swellLimit) k = 'nope_swell';
-  else if (n <= 28 && isNatural && currentPool.tideDependent) k = 'nope_tide';
+  else if (n <= 28 && isNatural && tideMode(currentPool) !== 'none') k = 'nope_tide';
   else if (n >= 85 && isNatural) k = 'epic_natural';
   else k = n>=85?'epic':n>=70?'great':n>=55?(atBondi?'ok_bondi':'ok'):n>=40?'meh':'nope';
   const p = VERDICTS[k];
@@ -920,12 +947,12 @@ function render(d) {
   lastSnapshot = d;
   let {total, bk} = calcScore(d);
 
-  // Natural pool overrides — swell and tide penalties
+  // Natural pool overrides — swell and tide penalties (datum-invariant predicate, #9)
   if (currentPool && currentPool.natural) {
     const swellDanger = currentPool.swellLimit && d.wh > currentPool.swellLimit;
-    const t = d.tide.curve[d.h] || 0;
-    const tideBad = currentPool.tideDependent === true  && t > 0.85 ||
-                    currentPool.tideDependent === 'high' && t < 0.25;
+    const mode = tideMode(currentPool);
+    const fav  = mode !== 'none' && tideState(d.tide.curve, d.h, mode).favourable;
+    const tideBad = mode !== 'none' && fav === false;
     if (swellDanger) total = Math.min(total, 12);
     else if (tideBad) total = Math.min(total, 28);
   }
@@ -1029,13 +1056,16 @@ function render(d) {
   const con = el('swim-windows'); con.innerHTML = '';
   const wins = [];
   const tc = d.tide.curve;
+  const windowMode = tideMode(currentPool);
   for(let h=6;h<=20;h++){
     const {total:t}=calcScore({...d,h});
     const td=tc[h]||1;
-    // Score gate is LAT-tuned for the model; live is MSL datum (shifted), so stay neutral
-    // until wayfinder #9 defines datum-aware scoring (see docs/tide-behaviour-contract.md D2).
-    // Model path keeps prior behaviour.
-    const adj = (d.tide.src === 'LIVE') ? 0 : (td>0.5&&td<1.4?5:-3);
+    // Shared predicate (#9 D2): bonus when the pool's tide is favourable, penalty when not.
+    let adj = 0;
+    if (windowMode !== 'none') {
+      const f = tideState(tc, h, windowMode).favourable;
+      adj = f === true ? 5 : (f === false ? -3 : 0);
+    }
     wins.push({h,s:Math.min(100,Math.max(0,t+adj)),td});
   }
   wins.sort((a,b)=>b.s-a.s).slice(0,5).sort((a,b)=>a.h-b.h).forEach(w=>{
