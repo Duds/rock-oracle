@@ -415,6 +415,7 @@ footer{text-align:center;padding:var(--space-4);border-top:4px solid var(--cy);f
 
 <script type="module">
 import { TIDES, calcUV, uvLabel, bluebottleRisk, calcScore, getGrade, dirLabel, normaliseSnapshot, SNAPSHOT_VERSION } from './src/lib.js';
+import { createFavs, createRecents, createWeatherCache } from './src/store.js';
 import { LEGENDS } from './src/legends.js';
 import { POOLS, DEFAULT_POOL_ID } from './src/pools.js?v=6';
 
@@ -463,7 +464,7 @@ function updateHeader() {
   set('about-safety', '⚠ NOT A SAFETY TOOL. ' + (lg ? 'Lifeguard on duty (check roster).' : 'No lifeguard on duty.'));
   const favBtn = el('hdr-fav');
   if (favBtn) {
-    const isFav = getFavs().includes(currentPool.id);
+    const isFav = favsStore.list().includes(currentPool.id);
     favBtn.textContent = isFav ? '★' : '☆';
     favBtn.classList.toggle('starred', isFav);
   }
@@ -530,7 +531,7 @@ function escapeHtml(str) {
 }
 
 function selectPool(pool) {
-  if (currentPool && currentPool.id !== pool.id) addToRecent(currentPool.id);
+  if (currentPool && currentPool.id !== pool.id) recentsStore.add(currentPool.id);
   currentPool = pool;
   history.pushState(null, '', '?pool=' + pool.id);
   updateHeader();
@@ -539,25 +540,14 @@ function selectPool(pool) {
   doRefresh();
 }
 
-// ── FAVOURITES ────────────────────────────────────────────────
-const FAV_KEY = 'rock_oracle_favs';
-function getFavs() { try { return JSON.parse(localStorage.getItem(FAV_KEY) || '[]'); } catch { return []; } }
-function toggleFav(id) {
-  const favs = getFavs();
-  const idx = favs.indexOf(id);
-  if (idx >= 0) favs.splice(idx, 1); else favs.unshift(id);
-  localStorage.setItem(FAV_KEY, JSON.stringify(favs));
-  renderSearchList(el('search-input')?.value || '');
-}
+// ── PERSISTENCE (injectable stores, wayfinder #6) ─────────────
+const favsStore     = createFavs(localStorage);
+const recentsStore  = createRecents(localStorage);
+const weatherCache  = createWeatherCache(localStorage, { normalise: normaliseSnapshot, version: SNAPSHOT_VERSION });
 
-// ── RECENTLY VISITED ──────────────────────────────────────────
-const RECENT_KEY = 'oracle_recent';
-function getRecent() { try { return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]'); } catch { return []; } }
-function addToRecent(id) {
-  const r = getRecent().filter(x => x !== id);
-  r.unshift(id);
-  if (r.length > 5) r.length = 5;
-  localStorage.setItem(RECENT_KEY, JSON.stringify(r));
+function toggleFav(id) {
+  favsStore.toggle(id);
+  renderSearchList(el('search-input')?.value || '');
 }
 function scrollToActivePool() {
   const input = el('search-input');
@@ -572,7 +562,7 @@ function scrollToActivePool() {
 // ── SEARCH ────────────────────────────────────────────────────
 function renderSearchList(query) {
   const q = (query || '').toLowerCase().trim();
-  const favs = getFavs();
+  const favs = favsStore.list();
   const filtered = POOLS.filter(p =>
     !q || p.name.toLowerCase().includes(q) ||
           p.suburb.toLowerCase().includes(q) ||
@@ -644,7 +634,7 @@ function renderSearchList(query) {
   }
 
   // Recently visited section
-  const recentIds = getRecent();
+  const recentIds = recentsStore.list();
   const recentPools = recentIds.map(id => POOLS.find(p => p.id === id)).filter(Boolean);
   const filteredRecent = q ? recentPools.filter(p =>
     p.name.toLowerCase().includes(q) || p.suburb.toLowerCase().includes(q) || p.state.toLowerCase().includes(q)
@@ -875,24 +865,8 @@ async function fetchWeather() {
   });
 }
 
-// ── CACHE (localStorage, 30-min TTL, per-pool) ───────────────
-const WX_TTL = 30 * 60 * 1000;
-function wxKey() { return 'oracle_wx_' + (currentPool ? currentPool.id : 'default'); }
-
-function loadCache() {
-  try {
-    const { ts, version, data } = JSON.parse(localStorage.getItem(wxKey()) || 'null') || {};
-    if (!(ts && Date.now() - ts < WX_TTL && version === SNAPSHOT_VERSION)) return null;
-    return normaliseSnapshot(data);
-  } catch { return null; }
-}
-
-function saveCache(data) {
-  try {
-    const d2 = { ...data, syd: data.syd instanceof Date ? data.syd.toISOString() : data.syd };
-    localStorage.setItem(wxKey(), JSON.stringify({ ts: Date.now(), version: SNAPSHOT_VERSION, data: d2 }));
-  } catch {}
-}
+// ── CACHE (weatherCache store: 30-min TTL, 7-day stale tier, per-pool) ──
+function loadCache() { return weatherCache.read(currentPool ? currentPool.id : null); }
 
 // ── 7-DAY OUTLOOK ────────────────────────────────────────────
 function buildOutlook(d) {
@@ -1030,7 +1004,11 @@ function render(d) {
 
   // Badge
   const badge = el('dbdg');
-  if (badge) { badge.textContent = d.live?'LIVE':'SIMULATED'; badge.className = 'dbdg '+(d.live?'live':'sim'); }
+  if (badge) {
+    const isStale = !d.live && String(d.src || '').includes('stale');
+    badge.textContent = d.live ? 'LIVE' : (isStale ? 'STALE' : 'SIMULATED');
+    badge.className = 'dbdg ' + (d.live ? 'live' : 'sim');
+  }
 
   // Stat bars
   const sb = el('statbars'); sb.innerHTML = '';
@@ -1199,7 +1177,7 @@ function toggleHdrFav() {
   toggleFav(currentPool.id);
   const btn = el('hdr-fav');
   if (btn) {
-    const isFav = getFavs().includes(currentPool.id);
+    const isFav = favsStore.list().includes(currentPool.id);
     btn.textContent = isFav ? '★' : '☆';
     btn.classList.toggle('starred', isFav);
   }
@@ -1253,7 +1231,18 @@ async function doRefresh() {
       d = makeFallback();
     }
   }
-  if (fetchOk) saveCache(d);
+  if (fetchOk) {
+    const d2 = { ...d, syd: d.syd instanceof Date ? d.syd.toISOString() : d.syd };
+    weatherCache.write(currentPool ? currentPool.id : null, d2);
+  } else {
+    // Degraded tier (wayfinder #4): serve the stale cached snapshot, flagged, before
+    // falling back to the simulated seasonal estimate.
+    const stale = weatherCache.read(currentPool ? currentPool.id : null, { allowStale: true });
+    if (stale) {
+      d = { ...stale, src: stale.src + ' — cached (stale)', live: false };
+      log('Serving stale cache after fetch failure');
+    }
+  }
   const errBanner = el('alert-err');
   if (errBanner) errBanner.className = 'alert-banner alert-err' + (fetchOk ? '' : ' show');
   render(d);
