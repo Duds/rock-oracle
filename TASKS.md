@@ -8,14 +8,18 @@ Tiered task list for the project. Context notes aid session continuity.
 
 - **Design System Token Layer** (COMPLETE)
   > Last: Implemented spacing, alpha, semantic tokens. All CSS values token-based.
-  > Next: Start spacing token adoption phase or move to NEXT.
+  > Next: done. Spacing token adoption complete 2026-09-07.
 
 ---
 
 ## NEXT (Ready to Start)
 
-- **Spacing Token Adoption** — Apply `--space-*` vars to padding/margin/gap throughout index.html (phase-based by section)
-- **Responsive Layout Testing** — Test at 320px, 680px, 1100px breakpoints; verify tab/search overlays
+- **Spacing Token Adoption** (COMPLETE, 2026-09-07)
+  > All padding/margin/gap px values tokenised: exact matches (4/8/16/20/24/28) plus 10px→`--space-3`, 14px→`--space-4` rounding. Sub-8px literals (3/5/6/7px) kept: pixel-font components depend on them. Tests 49/49, brace balance OK.
+  > Next: visual check at 320px/680px/1100px (see Responsive Layout Testing).
+- **Responsive Layout Testing** (COMPLETE, 2026-09-07)
+  > Verified visual layout and spacing token application at 320px, 680px, and 1100px breakpoints. All main views, tab views, and the search overlay render correctly without overflow or console errors. Screenshots captured and reviewed.
+  > Next: Review Bluebottle Risk Algorithm.
 - **Add Pool Selector Styling** — Enhance search-panel layout with token-based spacing/colors (COMPLETE)
   > Constrained width via .search-inner, sticky search header, focus/hover states, token-based padding/font-vars
 - **Bluebottle Risk Algorithm Review** — Validate `bluebottleRisk()` against live conditions; consider wind gust peaks
