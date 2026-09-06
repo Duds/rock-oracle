@@ -22,7 +22,8 @@ Tiered task list for the project. Context notes aid session continuity.
   > Next: Review Bluebottle Risk Algorithm.
 - **Add Pool Selector Styling** — Enhance search-panel layout with token-based spacing/colors (COMPLETE)
   > Constrained width via .search-inner, sticky search header, focus/hover states, token-based padding/font-vars
-- **Bluebottle Risk Algorithm Review** — Validate `bluebottleRisk()` against live conditions; consider wind gust peaks
+- **Bluebottle Risk Algorithm Review** — Validate `bluebottleRisk()` against live conditions; consider wind gust peaks (COMPLETE, 2026-09-07)
+  > Added optional `windGust` param: gust ≥ 30 km/h upgrades MEDIUM→HIGH (direction still gates). Fetch `wind_gusts_10m`, carried through snapshot + fallback. Live Maroubra confirmed value: gust 46 km/h. Tests 53/53.
 
 ---
 
