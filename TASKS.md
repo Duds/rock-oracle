@@ -16,7 +16,8 @@ Tiered task list for the project. Context notes aid session continuity.
 
 - **Spacing Token Adoption** — Apply `--space-*` vars to padding/margin/gap throughout index.html (phase-based by section)
 - **Responsive Layout Testing** — Test at 320px, 680px, 1100px breakpoints; verify tab/search overlays
-- **Add Pool Selector Styling** — Enhance search-panel layout with token-based spacing/colors
+- **Add Pool Selector Styling** — Enhance search-panel layout with token-based spacing/colors (COMPLETE)
+  > Constrained width via .search-inner, sticky search header, focus/hover states, token-based padding/font-vars
 - **Bluebottle Risk Algorithm Review** — Validate `bluebottleRisk()` against live conditions; consider wind gust peaks
 
 ---

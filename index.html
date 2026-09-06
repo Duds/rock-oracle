@@ -149,20 +149,23 @@ header{text-align:center;padding:var(--space-7) var(--space-4) var(--space-3);bo
 .alert-swell{color:var(--rd);border-color:var(--rd);background:rgba(255,48,96,.1);}
 
 /* SEARCH / POOL SELECTOR */
-.search-panel{display:none;position:fixed;inset:0;background:var(--dk);z-index:500;overflow-y:auto;padding:var(--space-4);box-sizing:border-box;}
+.search-panel{display:none;position:fixed;inset:0;background:var(--dk);z-index:500;overflow-y:auto;box-sizing:border-box;}
 .search-panel.open{display:block;}
-.search-hdr{display:flex;gap:var(--space-2);align-items:center;margin-bottom:var(--space-3);border-bottom:4px solid var(--cy);padding-bottom:var(--space-3);}
-#search-input{flex:1;background:var(--md);border:4px solid var(--cy);color:var(--wh);font-family:'Press Start 2P',monospace;font-size:7px;padding:var(--space-2) var(--space-2);outline:none;}
+.search-inner{max-width:820px;margin:0 auto;padding:var(--space-4);}
+.search-hdr{position:sticky;top:0;z-index:3;display:flex;flex-wrap:wrap;gap:var(--space-2);align-items:stretch;margin-bottom:var(--space-3);border-bottom:4px solid var(--cy);padding:var(--space-2) 0 var(--space-3);background:var(--md);}
+#search-input{flex:1 1 180px;min-width:150px;background:var(--md);border:4px solid var(--cy);color:var(--wh);font-family:var(--font-pixel);font-size:7px;padding:var(--space-2);outline:none;transition:box-shadow .15s;}
+#search-input:focus{box-shadow:0 0 0 4px rgba(var(--cy-rgb),.28);}
 #search-input::placeholder{color:var(--gr);}
-.search-close{background:none;border:4px solid var(--rd);color:var(--rd);font-family:'Press Start 2P',monospace;font-size:8px;padding:var(--space-2) var(--space-2);cursor:pointer;}
+.search-close{display:inline-flex;align-items:center;justify-content:center;background:none;border:4px solid var(--rd);color:var(--rd);font-family:var(--font-pixel);font-size:8px;padding:var(--space-2);cursor:pointer;transition:all .15s;}
+.search-close:hover{background:var(--rd);color:var(--dk);}
 .search-sec{font-size:6px;color:var(--gr);letter-spacing:2px;margin:var(--space-4) 0 var(--space-2);}
-.pool-row{display:flex;align-items:center;gap:var(--space-2);padding:var(--space-2) var(--space-2);border:4px solid var(--bl);margin-bottom:var(--space-1);cursor:pointer;transition:background .1s;}
+.pool-row{display:flex;align-items:center;gap:var(--space-2);padding:var(--space-2) var(--space-3);border:4px solid var(--bl);margin-bottom:var(--space-1);cursor:pointer;transition:background .1s,border-color .1s;}
 .pool-row:hover{border-color:var(--cy);background:var(--md);}
 .pool-row.active{border-color:var(--gn);background:rgba(0,255,136,.08);}
-.pool-row .pr-fav{background:none;border:none;cursor:pointer;font-size:14px;line-height:1;padding:0;flex-shrink:0;}
+.pool-row .pr-fav{background:none;border:none;cursor:pointer;font-size:14px;line-height:1;padding:0 var(--space-1);flex-shrink:0;}
 .pool-row .pr-name{flex:1;font-size:6px;color:var(--wh);line-height:1.8;}
 .pool-row .pr-loc{font-size:5px;color:var(--gr);flex-shrink:0;text-align:right;line-height:1.8;}
-.pool-row .pr-badge{font-size:5px;color:var(--gn);flex-shrink:0;border:4px solid var(--gn);padding:1px 4px;}
+.pool-row .pr-badge{font-size:5px;color:var(--gn);flex-shrink:0;border:4px solid var(--gn);padding:var(--space-1);}
 .pool-row .pr-badge.natural{color:var(--cy);border-color:var(--cy);}
 .pool-row .pr-badge.tide{color:var(--or);border-color:var(--or);}
 #fav-section{display:none;}
@@ -212,12 +215,12 @@ header{text-align:center;padding:var(--space-7) var(--space-4) var(--space-3);bo
 #ts{text-align:center;font-size:5px;color:var(--gr);padding:var(--space-2);}
 footer{text-align:center;padding:14px;border-top:4px solid var(--cy);font-size:5px;color:var(--gr);line-height:2.5;}
 .r-epic{color:var(--gn)}.r-great{color:var(--color-grade-great)}.r-ok{color:var(--or)}.r-meh{color:var(--color-grade-meh)}.r-nope{color:var(--rd)}
-.my-pool-btn{font-family:'Press Start 2P',monospace;font-size:6px;padding:var(--space-2) var(--space-2);background:none;color:var(--gn);border:4px solid var(--gn);cursor:pointer;flex-shrink:0;letter-spacing:1px;transition:all .15s;}
+.my-pool-btn{display:inline-flex;align-items:center;justify-content:center;font-family:var(--font-pixel);font-size:7px;padding:var(--space-2);background:none;color:var(--gn);border:4px solid var(--gn);cursor:pointer;flex-shrink:0;letter-spacing:1px;transition:all .15s;}
 .my-pool-btn:hover{background:var(--gn);color:var(--dk);}
-#hdr-fav{background:none;border:none;cursor:pointer;font-size:22px;color:var(--gr);line-height:1;padding:4px 0;transition:color .2s,transform .1s;display:block;margin:2px auto 0;}
+#hdr-fav{background:none;border:none;cursor:pointer;font-size:22px;color:var(--gr);line-height:1;padding:var(--space-1) 0;transition:color .2s,transform .1s;display:block;margin:var(--space-1) auto 0;}
 #hdr-fav.starred{color:var(--yw);}
 #hdr-fav:active{transform:scale(1.3);}
-#search-map-container{width:100%;height:260px;margin-bottom:var(--space-1);border:4px solid var(--cy);}
+#search-map-container{width:100%;height:260px;margin-bottom:var(--space-1);border:4px solid var(--cy);box-shadow:0 0 0 4px var(--dk),0 0 0 8px var(--cy);}
 #copy-link-btn{font-family:'Press Start 2P',monospace;font-size:6px;padding:8px 14px;background:var(--dk);color:var(--pk);border:4px solid var(--pk);cursor:pointer;display:block;margin:0 auto 8px;letter-spacing:1px;transition:all .15s;}
 #copy-link-btn:hover{background:var(--pk);color:var(--dk);}
 #recent-section{display:none;}
@@ -384,6 +387,7 @@ footer{text-align:center;padding:14px;border-top:4px solid var(--cy);font-size:5
 
   <!-- POOL SEARCH PANEL -->
   <div id="search-panel" class="search-panel">
+    <div class="search-inner">
     <div class="search-hdr">
       <input id="search-input" type="text" placeholder="SEARCH POOLS..." autocomplete="off" oninput="renderSearchList(this.value)">
       <button class="my-pool-btn" onclick="scrollToActivePool()">⌖ MY POOL</button>
@@ -400,6 +404,7 @@ footer{text-align:center;padding:14px;border-top:4px solid var(--cy);font-size:5
     </div>
     <div class="search-sec">ALL POOLS</div>
     <div id="pool-list"></div>
+    </div>
   </div>
 
   <footer>
@@ -760,7 +765,7 @@ function drawTide(curHour) {
   for (let i=0;i<=4;i++){const y=pad+(i/4)*cH;for(let x=0;x<W;x+=4){ctx.fillStyle='rgba(255,255,255,.04)';ctx.fillRect(x,Math.round(y),2,1);}}
   ctx.fillStyle='rgba(0,229,255,.10)';
   ctx.fillRect(Math.round(pad+(curHour/24)*cW),pad,Math.max(3,(1/24)*cW),cH);
-  const pts = TIDES.map((v,i)=>({x:Math.round(pad+(i/24)*cW),y:Math.round(pad+(1-(v-mn)/rng)*cH)}));
+  const pts = TIDES.map((v,i)=>({x:Math.round(pad+(i/24)*cW),y:Math.round(pad+((1-(v-mn)/rng))*cH)}));
   for(let i=0;i<pts.length-1;i++){
     const x1=pts[i].x,x2=pts[i+1].x,y1=pts[i].y,y2=pts[i+1].y;
     for(let x=x1;x<x2;x+=2){
