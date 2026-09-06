@@ -34,7 +34,7 @@ This is a **self-contained vanilla HTML/CSS/JS app** (no frameworks, no build st
 
 | Module | Purpose | Key Exports |
 |--------|---------|-------------|
-| `src/lib.js` | Core algorithms: tide harmonic model, UV calculation, bluebottle risk, scoring system | `tideAt()`, `calcUV()`, `bluebottleRisk()`, `calcScore()`, `getGrade()` |
+| `src/lib.js` | Core algorithms: tide harmonic model, UV calculation, bluebottle risk, scoring system, WeatherSnapshot normaliser | `tideAt()`, `calcUV()`, `bluebottleRisk()`, `calcScore()`, `getGrade()`, `normaliseSnapshot()`, `SNAPSHOT_VERSION` |
 | `src/pools.js` | Ocean pool database (40+ pools across QLD/NSW/VIC) with metadata | `POOLS` array, `POOL_GROUPS` |
 | `src/legends.js` | Pool-specific legend narratives (history, myths, local knowledge) | `LEGENDS` object (keyed by pool ID) |
 
@@ -170,11 +170,12 @@ The app uses Claude's `web_search` tool to fetch live Maroubra conditions becaus
 
 The harmonic model (M2, S2, K1 constituents) provides a **good approximation** for Sydney. For production, integrate BOM or WorldTides API predictions (noted in README).
 
-**Live tide source (wayfinder #2, committed 2026-09-07):** the chart now prefers real heights from Open-Meteo Marine `hourly=sea_level_height_msl`, fetched on the same marine GET as waves/sea-temp (day-aligned to the pool timezone, shape matches `TIDES`). `index.html` holds `tideHeights` (25 pts) + `tideSrc` (`'LIVE'` | `'MODEL'`):
+**Live tide source (wayfinder #2, committed 2026-09-07):** the chart prefers real heights from Open-Meteo Marine `hourly=sea_level_height_msl`, fetched on the same marine GET as waves/sea-temp (day-aligned to the pool timezone, shape matches `TIDES`). The curve lives **inside the WeatherSnapshot** as `snapshot.tide = { curve, src: 'LIVE'|'MODEL' }` (wayfinder #3, `docs/weather-snapshot-contract.md`):
 
-- `fetchWeather` builds `tideHeights` when ≥25 finite values exist, else falls back to `[...TIDES]` → `'MODEL'`.
-- `drawTide` and swim-window height/direction use `tideHeights`; the tide title shows `[LIVE]`/`[MODEL]`.
-- Swim-window ±5 score gate is **neutral** for `'LIVE'` (MSL datum differs from the LAT-tuned gate). Datum-aware scoring semantics are open wayfinder issue #7.
+- `fetchWeather` builds the live 25-pt curve when ≥25 finite MSL values exist, else sets `src:'MODEL'`; `normaliseSnapshot` falls back to `TIDES`. Both paths yield the same snapshot shape.
+- `drawTide`, the swim-window tide rows, and the natural-pool penalty all read `snapshot.tide.curve`/`src`; the tide title shows `[LIVE]`/`[MODEL]`.
+- Cache writes `{ ts, version, data }` (version = `SNAPSHOT_VERSION`); `loadCache` re-normalises and returns `null` on version/TTL miss.
+- Swim-window ±5 score gate is **neutral** for `'LIVE'` (MSL datum differs from the LAT-tuned gate). Datum-aware scoring semantics are open wayfinder issue #9.
 
 ### Legend System
 

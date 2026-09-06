@@ -70,3 +70,53 @@ export function getGrade(n) {
 export function dirLabel(deg) {
   return ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'][Math.round(deg/22.5)%16];
 }
+
+// ── WEATHER SNAPSHOT ─────────────────────────────────────────
+// Versioned, validated snapshot shape. Contract documented in
+// docs/weather-snapshot-contract.md (wayfinder #3). normaliseSnapshot runs at the
+// S1 fetch boundary and on cache read, so every consumer sees one, typed shape.
+export const SNAPSHOT_VERSION = 1;
+
+const fin = (v) => (typeof v === 'number' && isFinite(v));
+// null-safe numeric: returns v if a finite number, else fallback (null by default).
+const num = (v, fb = null) => (fin(v) ? v : fb);
+
+// A 25-point day-aligned tide curve. Live (MSL) when raw.tide.curve is a finite 25-array
+// and flagged LIVE; otherwise the Sydney model curve, flagged MODEL.
+function normaliseTide(rawTide) {
+  const curveOk = Array.isArray(rawTide && rawTide.curve)
+    && rawTide.curve.length === 25 && rawTide.curve.every(fin);
+  const src = (rawTide && rawTide.src === 'LIVE' && curveOk) ? 'LIVE' : 'MODEL';
+  const curve = curveOk ? rawTide.curve.slice(0, 25) : TIDES.slice(0, 25);
+  return { curve, src };
+}
+
+// Collapse any weather payload (live fetch, fallback, cache) into a validated snapshot.
+export function normaliseSnapshot(raw) {
+  const r = raw || {};
+  return {
+    version: SNAPSHOT_VERSION,
+    h:      num(r.h, 0),
+    syd:    r.syd instanceof Date ? r.syd : new Date(r.syd),
+    src:    String(r.src || 'unknown'),
+    live:   !!r.live,
+    at:     num(r.at),
+    cc:     num(r.cc),
+    wind:   num(r.wind),
+    gust:   num(r.gust, 0),
+    windDir:num(r.windDir),
+    uvRaw:  num(r.uvRaw),
+    st:     num(r.st),
+    wp:     num(r.wp),
+    wh:     num(r.wh),
+    days:  Array.isArray(r.days) ? r.days.map((d) => ({
+      at:      num(d && d.at),
+      wind:    num(d && d.wind),
+      windDir: num(d && d.windDir),
+      cc:      num(d && d.cc),
+      uvRaw:   num(d && d.uvRaw),
+      wh:      num(d && d.wh),
+    })) : [],
+    tide:    normaliseTide(r.tide),
+  };
+}

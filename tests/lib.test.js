@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { tideAt, TIDES, calcUV, uvLabel, bluebottleRisk, calcScore, getGrade, dirLabel } from '../src/lib.js';
+import { tideAt, TIDES, calcUV, uvLabel, bluebottleRisk, calcScore, getGrade, dirLabel, normaliseSnapshot, SNAPSHOT_VERSION } from '../src/lib.js';
 
 // ── tideAt ───────────────────────────────────────────────────
 describe('tideAt', () => {
@@ -207,4 +207,50 @@ describe('dirLabel', () => {
   it('270° → W', () => expect(dirLabel(270)).toBe('W'));
   it('45° → NE', () => expect(dirLabel(45)).toBe('NE'));
   it('315° → NW',() => expect(dirLabel(315)).toBe('NW'));
+});
+
+// ── normaliseSnapshot ────────────────────────────────────────
+describe('normaliseSnapshot', () => {
+  it('stamps version and collapses live payload into a typed snapshot', () => {
+    const s = normaliseSnapshot({
+      h: 14, syd: new Date('2026-09-07T04:00:00Z'), src: 'Open-Meteo (live)', live: true,
+      at: 20, cc: 40, wind: 18.5, gust: 46, windDir: 148, uvRaw: 4,
+      st: 19, wp: 8, wh: 1.1, days: [{ at: 22, wind: 15, windDir: 90, cc: 10, uvRaw: 6, wh: 0.8 }],
+      tide: { curve: Array.from({ length: 25 }, (_, i) => i * 0.1), src: 'LIVE' },
+    });
+    expect(s.version).toBe(SNAPSHOT_VERSION);
+    expect(s.live).toBe(true);
+    expect(s.gust).toBe(46);
+    expect(s.tide.src).toBe('LIVE');
+    expect(s.tide.curve).toHaveLength(25);
+    expect(s.days).toHaveLength(1);
+    expect(s.days[0].wind).toBe(15);
+    expect(s.syd instanceof Date).toBe(true);
+  });
+
+  it('defaults gust to 0 and tolerates missing optional fields as null', () => {
+    const s = normaliseSnapshot({ h: 8, syd: new Date('2026-09-07T04:00:00Z'), wind: 10, at: 18, cc: 20, windDir: 90, st: 20 });
+    expect(s.gust).toBe(0);
+    expect(s.uvRaw).toBe(null);
+    expect(s.wp).toBe(null);
+    expect(s.wh).toBe(null);
+    expect(s.days).toEqual([]);
+  });
+
+  it('invalid/absent tide curve falls back to the MODEL curve', () => {
+    const s = normaliseSnapshot({ h: 8, syd: new Date(), wind: 5, at: 20, cc: 30, st: 20 });
+    expect(s.tide.src).toBe('MODEL');
+    expect(s.tide.curve).toEqual(TIDES);
+  });
+
+  it('LIVE label without a valid 25-array curve is downgraded to MODEL', () => {
+    const s = normaliseSnapshot({ h: 8, syd: new Date(), wind: 5, at: 20, cc: 30, st: 20, tide: { curve: [1, 2, 3], src: 'LIVE' } });
+    expect(s.tide.src).toBe('MODEL');
+    expect(s.tide.curve).toEqual(TIDES);
+  });
+
+  it('converts a syd string back into a Date (cache round-trip)', () => {
+    const s = normaliseSnapshot({ h: 10, syd: '2026-09-07T05:00:00.000Z', wind: 5, at: 21, cc: 30, st: 20 });
+    expect(s.syd instanceof Date).toBe(true);
+  });
 });
