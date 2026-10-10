@@ -18,7 +18,7 @@ Phase 1 output of the spike-to-spec refactor. Read-only inventory. No code chang
 | `src/pools.js` | 760 | Pool database (data, clean) |
 | `src/legends.js` | 176 | Legend narratives (data, clean) |
 | `tests/lib.test.js` | 189 | Vitest coverage for lib.js only |
-| `sw.js`, `scripts/generate-icons.js` | small | PWA shell + icon build |
+| `sw.js` (generated into `dist/`), `scripts/*.js` | small | PWA shell + build/publish/icon tooling |
 
 The pure-logic layer is in good shape. Nearly all architectural debt lives in `index.html`.
 

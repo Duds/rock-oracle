@@ -1,6 +1,13 @@
+# Origin is now the only script source: Leaflet and the fonts are vendored
+# (ADR-0004), so the CDN origins are gone. style-src keeps 'unsafe-inline'
+# deliberately — see ADR-0001.
+#
+# 'unsafe-inline' still appears in script-src because 19 inline handlers remain;
+# #15 removes them, and #12 then drops the directive. Until then the CSP is no
+# weaker than before, but the third-party origins are already gone.
 /*
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: geolocation=(), microphone=(), camera=()
-  Content-Security-Policy: default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src https://api.open-meteo.com https://marine-api.open-meteo.com https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data: https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.org; worker-src 'self'
+  Content-Security-Policy: default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self' 'unsafe-inline'; connect-src https://api.open-meteo.com https://marine-api.open-meteo.com; img-src 'self' data: https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.org; worker-src 'self'; base-uri 'self'; form-action 'none'; object-src 'none'

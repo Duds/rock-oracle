@@ -42,7 +42,7 @@ tokens, adding pools or legend content.
 - [ ] **3.2** `script-src` drops `'unsafe-inline'`
       — [ADR-0001](./adr/0001-event-delegation-over-inline-handlers.md)
       *Now: 19 inline handlers and 12 `window.*` exports force it.*
-- [ ] **3.3** CSP removals applied: `cdn.jsdelivr.net`, `fonts.googleapis.com`,
+- [x] **3.3** CSP removals applied: `cdn.jsdelivr.net`, `fonts.googleapis.com`,
       `fonts.gstatic.com` gone from all directives
       — [ADR-0004](./adr/0004-vendor-third-party-assets.md)
 - [ ] **3.4** Tightened CSP served in `Content-Security-Policy-Report-Only`
@@ -55,24 +55,38 @@ tokens, adding pools or legend content.
 
 ## 4. Offline and deploy freshness
 
-- [ ] **4.1** HTML is network-first, static assets cache-first
+- [x] **4.1** HTML is network-first, static assets cache-first
       — [ADR-0003](./adr/0003-network-first-html.md)
-- [ ] **4.2** Precache list covers the whole module graph
-      *Now: lists 2 of 4 modules; `store.js` and `legends.js` are absent and
-      `pools.js` is imported as `?v=6`, so the query string misses the cache.*
-- [ ] **4.3** Asset list is generated at build time, not hand-maintained.
-- [ ] **4.4** A returning visitor receives a new deploy without clearing caches.
-- [ ] **4.5** Offline load renders the app from cache, verified with the network
-      disabled in a browser.
+- [x] **4.2** Precache list covers the whole module graph
+      *Was: listed 2 of 4 modules, and `pools.js` is imported as `?v=6` so the
+      query string missed the cache key. Both fixed — the SW now matches with
+      `ignoreSearch`, which is what offline actually needed.*
+- [x] **4.3** Asset list is generated at build time, not hand-maintained
+      *`scripts/generate-sw.js` walks `dist/` and bakes a content hash into the
+      cache name, so any change to any file produces a new cache.*
+- [x] **4.4** A returning visitor receives a new deploy without clearing caches
+      *Verified by simulating a deploy: changing `dist/index.html` and reloading
+      showed the new title with caches untouched.*
+- [x] **4.5** Offline load renders the app from cache, verified with the network
+      disabled in a browser
+      *Verified with the context set offline: full render, Leaflet present, no
+      JS exceptions. Previously the app hung on the loader.*
 
 ## 5. Third-party dependencies
 
-- [ ] **5.1** Leaflet vendored and self-hosted
+- [x] **5.1** Leaflet vendored and self-hosted
       — [ADR-0004](./adr/0004-vendor-third-party-assets.md)
-- [ ] **5.2** Press Start 2P self-hosted, licence recorded.
-- [ ] **5.3** No runtime request leaves the origin except the weather API and
-      the error endpoint.
-- [ ] **5.4** Vendored versions recorded so a bump is a deliberate act.
+      *From the npm tarball, not the CDN: the CDN serves a dynamically minified
+      stylesheet whose bytes are not stable, which is why no hash could be
+      trusted. Hashes recorded in [vendor-provenance.md](./vendor-provenance.md).*
+- [x] **5.2** Press Start 2P self-hosted, licence recorded
+      *Latin subset, OFL 1.1. Latin-only changes nothing: the box-drawing and
+      non-Latin glyphs the UI uses were already falling back to system fonts.*
+- [x] **5.3** No runtime request leaves the origin except the weather API and
+      the error endpoint
+      *Verified by capturing every request: only the two Open-Meteo calls.*
+- [x] **5.4** Vendored versions recorded so a bump is a deliberate act
+      — [vendor-provenance.md](./vendor-provenance.md)
 
 ## 6. Interface architecture
 
@@ -131,14 +145,23 @@ tokens, adding pools or legend content.
 
 ## Status
 
-**§1 Runtime and build** and **§2 Publish surface** are complete — see
-[#10](https://github.com/Duds/rock-oracle/issues/10) and
-[#11](https://github.com/Duds/rock-oracle/issues/11).
+**§1 Runtime and build**, **§2 Publish surface**, **§4 Offline and deploy
+freshness** and **§5 Third-party dependencies** are complete — see
+[#10](https://github.com/Duds/rock-oracle/issues/10),
+[#11](https://github.com/Duds/rock-oracle/issues/11),
+[#13](https://github.com/Duds/rock-oracle/issues/13) and
+[#14](https://github.com/Duds/rock-oracle/issues/14). 24 of 51 checks ticked.
 
-Everything else is defined but not implemented. Checks 3.2, 3.3, 4.x, 5.x, 6.x,
-7.x, 8.x and 9.x are tracked by issues
-[#12](https://github.com/Duds/rock-oracle/issues/12)–[#18](https://github.com/Duds/rock-oracle/issues/18).
+Remaining: **3.2, 3.4, 3.5** (strict `script-src`, Report-Only rollout, HSTS),
+**6.x** (view-model extraction), **7.x** (accessibility), **8.x** (error
+reporting) and **9.x** (test gate) — tracked by
+[#12](https://github.com/Duds/rock-oracle/issues/12),
+[#15](https://github.com/Duds/rock-oracle/issues/15),
+[#16](https://github.com/Duds/rock-oracle/issues/16),
+[#17](https://github.com/Duds/rock-oracle/issues/17) and
+[#18](https://github.com/Duds/rock-oracle/issues/18).
 
-Known-failing today: **4.1, 4.2, 4.4** (deploy freshness) and **3.2** (strict
-`script-src`), both gated on the refactor in
-[#15](https://github.com/Duds/rock-oracle/issues/15).
+`script-src` still carries `'unsafe-inline'`; the third-party origins are
+already gone. [#15](https://github.com/Duds/rock-oracle/issues/15) removes the
+inline handlers, after which [#12](https://github.com/Duds/rock-oracle/issues/12)
+drops the directive.

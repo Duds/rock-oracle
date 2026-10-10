@@ -14,7 +14,10 @@ import { fileURLToPath } from 'node:url';
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const OUT = join(ROOT, 'dist');
 
-const PUBLISHED = ['index.html', 'manifest.json', 'sw.js', '_headers', 'src', 'assets'];
+const PUBLISHED = ['index.html', 'manifest.json', '_headers', 'src', 'assets'];
+
+// sw.js is generated into dist/ by scripts/generate-sw.js, not copied — its
+// precache list must match what was actually built.
 
 async function main() {
   await rm(OUT, { recursive: true, force: true });

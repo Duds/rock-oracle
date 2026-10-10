@@ -7,7 +7,7 @@
     "node": ">=24 <25"
   },
   "scripts": {
-    "build": "node scripts/build.js",
+    "build": "node scripts/build.js && node scripts/generate-sw.js",
     "check:publish": "node scripts/check-publish-surface.js",
     "test": "vitest run",
     "test:watch": "vitest",

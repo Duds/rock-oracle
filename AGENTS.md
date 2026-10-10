@@ -17,9 +17,9 @@ npm run test:watch  # Watch mode (auto-rerun on file changes)
 # Generate PWA icons from SVG
 npm run icons     # Creates PNG icons (192, 512, maskable) in assets/icons/
 
-# Local server (choose one)
-npx serve .                # Node.js static server
-python3 -m http.server 8080  # Python static server
+# Local server (serves the built site)
+npm run build              # assembles dist/ + generates dist/sw.js
+npx serve dist             # Node.js static server
 ```
 
 **Test Framework:** Vitest — run individual tests with `npm test -- --reporter=verbose` or filter by pattern with `npm test lib.test.js`.

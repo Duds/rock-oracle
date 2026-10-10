@@ -70,13 +70,19 @@ mahon-pool-tracker/
 
 ## Running Locally
 
-Just open `index.html` in any modern browser. No build step, no dependencies.
-
 ```bash
-# Or serve with any static server, e.g.:
-npx serve .
-python3 -m http.server 8080
+npm ci
+npm run build      # assembles dist/ and generates the service worker
+npx serve dist     # serve the built site
 ```
+
+`npm run test:watch` runs the unit tests on change; `npm run check:publish`
+verifies nothing internal is in `dist/`.
+
+Opening `index.html` directly still renders the interface, but the app will not
+work: it needs to be served over HTTP so the ES modules, the service worker and
+the map tiles resolve. Serving the **repo root no longer works** — the
+deployable site is assembled into `dist/`, and `sw.js` exists only there.
 
 ---
 
