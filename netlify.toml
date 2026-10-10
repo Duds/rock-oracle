@@ -1,6 +1,9 @@
 [build]
-  publish = "."
-  command = "npm ci && npm test"
+  # Publishes dist/ only. The repo root holds internal notes (TASKS.md,
+  # AGENTS.md, docs/) that must not be served — see
+  # docs/production-hardening.md check 2.1 and ADR-0007.
+  command = "npm ci && npm test && npm run build && npm run check:publish"
+  publish = "dist"
 
 [build.environment]
-  NODE_VERSION = "20"
+  NODE_VERSION = "24"

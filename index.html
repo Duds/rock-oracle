@@ -417,18 +417,47 @@ footer{text-align:center;padding:var(--space-4);border-top:4px solid var(--cy);f
 </div>
 
 <script type="module">
-import { TIDES, calcUV, uvLabel, bluebottleRisk, calcScore, getGrade, dirLabel, normaliseSnapshot, SNAPSHOT_VERSION, tideMode, tideState } from './src/lib.js';
+import { TIDES, calcUV, uvLabel, bluebottleRisk, calcScore, getGrade, dirLabel, normaliseSnapshot, SNAPSHOT_VERSION, tideMode, tideState, tideExtremes } from './src/lib.js';
 import { createFavs, createRecents, createWeatherCache } from './src/store.js';
 import { LEGENDS } from './src/legends.js';
 import { POOLS, DEFAULT_POOL_ID } from './src/pools.js?v=6';
+
+// ── TUNING CONSTANTS ─────────────────────────────────────────
+const UV_ALERT_THRESHOLD  = 6;        // UV index that raises the sun alert
+const BB_WARN_RISK        = 2;        // bluebottle risk level that warns
+// Score clamps shared with getVerdict's banding, so a capped score always reads as its band.
+const SWELL_DANGER_SCORE  = 12;       // ceiling when swell exceeds the pool limit
+const TIDE_NOPE_SCORE     = 28;       // ceiling when the tide is unfavourable
+const EPIC_MIN            = 85;
+const GREAT_MIN           = 70;
+const DECENT_MIN          = 55;
+const MEH_MIN             = 40;
+const TIDE_BONUS          = 5;        // swim-window points when the tide is favourable
+const TIDE_PENALTY        = -3;       // swim-window points when it is not
+const SWIM_WINDOW_FROM    = 6;        // first hour offered as a swim window
+const SWIM_WINDOW_TO      = 20;       // last hour offered
+const SWIM_WINDOW_COUNT   = 5;        // windows surfaced
+const OUTLOOK_DAYS        = 7;        // forecast days rendered
+const FUN_METER_SEGMENTS  = 20;       // fun-index blocks
+const RETRY_DELAY_MS      = 2000;     // pause before retrying a failed fetch
+const REFRESH_INTERVAL_MS = 15 * 60 * 1000;
+const LOADER_MAX_MS       = 12000;
+const COPY_FLASH_MS       = 2000;
+const MAP_MAX_ZOOM        = 18;
+const MAP_TILE_URL        = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+const MYTH_MARKER         = /\bMara\b/i;  // narrative beat marker; text after it reads as myth
 
 // ── UTILITIES ────────────────────────────────────────────────
 const log = (...a) => { try { console.warn(...a.map(x => typeof x==='object'?JSON.stringify(x):x)); } catch(e){} };
 const el  = id => document.getElementById(id);
 const set = (id, val) => { const e = el(id); if (e) e.textContent = val; };
+const isNum = v => typeof v === 'number' && isFinite(v);
 
 // ── POOL STATE ────────────────────────────────────────────────
 let currentPool = null;
+
+// Wall-clock time at the selected pool, independent of the viewer's timezone.
+const poolNow = () => new Date(new Date().toLocaleString('en-US', { timeZone: currentPool.timezone }));
 
 // Most recent validated WeatherSnapshot (holds the active tide curve). tideAt/TIDES are no
 // longer read directly for display/penalties; they stay in lib.js as the MODEL fallback.
@@ -555,111 +584,113 @@ function toggleFav(id) {
 function scrollToActivePool() {
   const input = el('search-input');
   if (input && input.value) { input.value = ''; renderSearchList(''); }
-  requestAnimationFrame(() => {
-    const panel = el('search-panel');
-    const row = panel && panel.querySelector('.pool-row.active');
-    if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  });
+  scrollActiveRowIntoView('smooth');
 }
 
 // ── SEARCH ────────────────────────────────────────────────────
+function matchesQuery(p, q) {
+  if (!q) return true;
+  return p.name.toLowerCase().includes(q) ||
+         p.suburb.toLowerCase().includes(q) ||
+         p.state.toLowerCase().includes(q);
+}
+
+function makeFavIcon(p, starred) {
+  const btn = document.createElement('button');
+  btn.className = 'pr-fav';
+  btn.textContent = starred ? '★' : '☆';
+  btn.style.color = starred ? 'var(--yw)' : 'var(--gr)';
+  btn.onclick = (e) => { e.stopPropagation(); toggleFav(p.id); };
+  return btn;
+}
+
+function makeBadge(p) {
+  const badge = document.createElement('div');
+  if (p.natural) {
+    badge.className = 'pr-badge natural';
+    badge.textContent = p.tideDependent ? '⏱ TIDE' : '⛰ NATURAL';
+    badge.title = p.tideDependent === true  ? 'Best within 2hrs of low tide' :
+                  p.tideDependent === 'high' ? 'Best near high tide' :
+                  'Natural rock pool';
+  } else {
+    badge.className = 'pr-badge';
+    badge.textContent = 'LG';
+  }
+  return badge;
+}
+
+// Hovering a row opens that pool's marker tooltip on the search map.
+function bindRowMarkerHover(row, p) {
+  row.onmouseenter = () => {
+    const marker = _sMarkerMap.get(p.id);
+    if (marker && _sMap) {
+      marker.openTooltip();
+      _sMap.panTo([p.lat, p.lon], { animate: true, duration: 0.4 });
+    }
+  };
+  row.onmouseleave = () => {
+    const marker = _sMarkerMap.get(p.id);
+    if (marker && !(currentPool && p.id === currentPool.id)) marker.closeTooltip();
+  };
+}
+
+function makePoolRow(p, favs) {
+  const row = document.createElement('div');
+  row.className = 'pool-row' + (currentPool && currentPool.id === p.id ? ' active' : '');
+  row.appendChild(makeFavIcon(p, favs.includes(p.id)));
+
+  const name = document.createElement('div');
+  name.className = 'pr-name';
+  name.textContent = p.name;
+  row.appendChild(name);
+
+  const loc = document.createElement('div');
+  loc.className = 'pr-loc';
+  loc.textContent = p.suburb + ' ' + p.state;
+  row.appendChild(loc);
+
+  if (p.natural || p.hasLifeguard) row.appendChild(makeBadge(p));
+
+  row.onclick = () => selectPool(p);
+  bindRowMarkerHover(row, p);
+  return row;
+}
+
+// Fills a section list, hiding the section when it has nothing to show.
+function fillSection(listId, sectionId, pools, favs) {
+  const list = el(listId), section = el(sectionId);
+  if (!list || !section) return;
+  list.innerHTML = '';
+  section.classList.toggle('has-favs', listId === 'fav-list' && pools.length > 0);
+  section.classList.toggle('has-recent', listId === 'recent-list' && pools.length > 0);
+  pools.forEach(p => list.appendChild(makePoolRow(p, favs)));
+}
+
 function renderSearchList(query) {
   const q = (query || '').toLowerCase().trim();
   const favs = favsStore.list();
-  const filtered = POOLS.filter(p =>
-    !q || p.name.toLowerCase().includes(q) ||
-          p.suburb.toLowerCase().includes(q) ||
-          p.state.toLowerCase().includes(q)
-  );
+  const filtered = POOLS.filter(p => matchesQuery(p, q));
+  const byId = (id) => POOLS.find(p => p.id === id);
 
-  function makeRow(p) {
-    const starred = favs.includes(p.id);
-    const active  = currentPool && currentPool.id === p.id;
-    const row = document.createElement('div');
-    row.className = 'pool-row' + (active ? ' active' : '');
+  fillSection('fav-list', 'fav-section', filtered.filter(p => favs.includes(p.id)), favs);
 
-    const favBtn = document.createElement('button');
-    favBtn.className = 'pr-fav';
-    favBtn.textContent = starred ? '★' : '☆';
-    favBtn.style.color = starred ? 'var(--yw)' : 'var(--gr)';
-    favBtn.onclick = (e) => { e.stopPropagation(); toggleFav(p.id); };
+  const recentPools = recentsStore.list().map(byId).filter(Boolean);
+  fillSection('recent-list', 'recent-section', recentPools.filter(p => matchesQuery(p, q)), favs);
 
-    const name = document.createElement('div');
-    name.className = 'pr-name';
-    name.textContent = p.name;
-
-    const loc = document.createElement('div');
-    loc.className = 'pr-loc';
-    loc.textContent = p.suburb + ' ' + p.state;
-
-    row.appendChild(favBtn);
-    row.appendChild(name);
-    row.appendChild(loc);
-    if (p.natural) {
-      const badge = document.createElement('div');
-      badge.className = 'pr-badge natural';
-      badge.textContent = p.tideDependent ? '⏱ TIDE' : '⛰ NATURAL';
-      badge.title = p.tideDependent === true  ? 'Best within 2hrs of low tide' :
-                    p.tideDependent === 'high' ? 'Best near high tide' :
-                    'Natural rock pool';
-      row.appendChild(badge);
-    } else if (p.hasLifeguard) {
-      const badge = document.createElement('div');
-      badge.className = 'pr-badge';
-      badge.textContent = 'LG';
-      row.appendChild(badge);
-    }
-    row.onclick = () => selectPool(p);
-    row.onmouseenter = () => {
-      const m = _sMarkerMap.get(p.id);
-      if (m && _sMap) { m.openTooltip(); _sMap.panTo([p.lat, p.lon], { animate: true, duration: 0.4 }); }
-    };
-    row.onmouseleave = () => {
-      const m = _sMarkerMap.get(p.id);
-      const isActive = currentPool && p.id === currentPool.id;
-      if (m && !isActive) m.closeTooltip();
-    };
-    return row;
-  }
-
-  // Favourites section
-  const favPools = filtered.filter(p => favs.includes(p.id));
-  const favSec = el('fav-section');
-  const favList = el('fav-list');
-  if (favSec && favList) {
-    favList.innerHTML = '';
-    if (favPools.length > 0) {
-      favSec.style.display = 'block';
-      favPools.forEach(p => favList.appendChild(makeRow(p)));
-    } else {
-      favSec.style.display = 'none';
-    }
-  }
-
-  // Recently visited section
-  const recentIds = recentsStore.list();
-  const recentPools = recentIds.map(id => POOLS.find(p => p.id === id)).filter(Boolean);
-  const filteredRecent = q ? recentPools.filter(p =>
-    p.name.toLowerCase().includes(q) || p.suburb.toLowerCase().includes(q) || p.state.toLowerCase().includes(q)
-  ) : recentPools;
-  const recentSec  = el('recent-section');
-  const recentList = el('recent-list');
-  if (recentSec && recentList) {
-    recentList.innerHTML = '';
-    if (filteredRecent.length > 0) {
-      recentSec.classList.add('has-recent');
-      filteredRecent.forEach(p => recentList.appendChild(makeRow(p)));
-    } else {
-      recentSec.classList.remove('has-recent');
-    }
-  }
-
-  // All pools list
   const poolList = el('pool-list');
   if (poolList) {
     poolList.innerHTML = '';
-    filtered.forEach(p => poolList.appendChild(makeRow(p)));
+    filtered.forEach(p => poolList.appendChild(makePoolRow(p, favs)));
   }
+}
+
+// Scrolls the open search panel so the active pool's row is centred.
+function scrollActiveRowIntoView(behaviour) {
+  requestAnimationFrame(() => {
+    const panel = el('search-panel');
+    const row = panel && panel.querySelector('.pool-row.active');
+    if (row) row.scrollIntoView({ behavior: behaviour, block: 'center' });
+  });
 }
 
 function showSearch() {
@@ -669,10 +700,7 @@ function showSearch() {
   if (input) { input.value = ''; input.focus(); }
   renderSearchList('');
   drawSearchMap();
-  requestAnimationFrame(() => {
-    const row = panel && panel.querySelector('.pool-row.active');
-    if (row) row.scrollIntoView({ behavior: 'instant', block: 'center' });
-  });
+  scrollActiveRowIntoView('instant');
 }
 
 function hideSearch() {
@@ -681,54 +709,62 @@ function hideSearch() {
 }
 
 // ── COPY LINK ─────────────────────────────────────────────────
+function flashButton(btn, text) {
+  if (!btn) return;
+  const original = btn.textContent;
+  btn.textContent = text;
+  setTimeout(() => { btn.textContent = original; }, COPY_FLASH_MS);
+}
+
+function copyViaExecCommand(url) {
+  const ta = Object.assign(document.createElement('textarea'), { value: url });
+  ta.style.cssText = 'position:fixed;opacity:0';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); } catch(e) {}
+  document.body.removeChild(ta);
+}
+
 function copyPoolLink() {
   const url = location.origin + location.pathname + '?pool=' + (currentPool ? currentPool.id : '');
   const btn = el('copy-link-btn');
-  const flash = orig => {
-    if (!btn) return;
-    btn.textContent = '✓ COPIED!';
-    setTimeout(() => { btn.textContent = orig; }, 2000);
-  };
-  navigator.clipboard?.writeText(url).then(() => flash('⎘ COPY LINK')).catch(() => {
-    // fallback for non-HTTPS/older browsers
-    const ta = Object.assign(document.createElement('textarea'), { value: url });
-    ta.style.cssText = 'position:fixed;opacity:0';
-    document.body.appendChild(ta);
-    ta.select();
-    try { document.execCommand('copy'); } catch(e) {}
-    document.body.removeChild(ta);
-    flash('⎘ COPY LINK');
-  });
+  navigator.clipboard?.writeText(url)
+    .then(() => flashButton(btn, '✓ COPIED!'))
+    .catch(() => {                       // non-HTTPS / older browsers
+      copyViaExecCommand(url);
+      flashButton(btn, '✓ COPIED!');
+    });
 }
 
 // ── LOADER ───────────────────────────────────────────────────
 let lbPct = 0;
+const LOADER_LINES = [
+  { id: 'lm1', from: 0,  to: 30  },
+  { id: 'lm2', from: 30, to: 60  },
+  { id: 'lm3', from: 60, to: Infinity },
+];
 const lbIv = setInterval(() => {
-  lbPct = Math.min(lbPct+8, 85);
-  el('lb').style.width = lbPct+'%';
-  const pctEl = el('lpct'); if (pctEl) pctEl.textContent = Math.round(lbPct)+'%';
-  ['lm1','lm2','lm3'].forEach((id, i) => {
-    const line = el(id); if (!line) return;
-    const threshold = i === 0 ? 0 : i === 1 ? 30 : 60;
-    const next = i === 2 ? 101 : (i === 0 ? 30 : 60);
-    line.classList.toggle('active', lbPct >= threshold && lbPct < next);
+  lbPct = Math.min(lbPct + 8, 85);
+  el('lb').style.width = lbPct + '%';
+  set('lpct', Math.round(lbPct) + '%');
+  LOADER_LINES.forEach(({ id, from, to }) => {
+    const line = el(id);
+    if (line) line.classList.toggle('active', lbPct >= from && lbPct < to);
   });
 }, 300);
-const setMsg = m => {
-  const e = el('lm2'); if (e) e.textContent = m;
-};
+const setMsg = m => set('lm2', m);
 
 function showApp() {
   clearInterval(lbIv);
   el('lb').style.width = '100%';
-  const pctEl = el('lpct'); if (pctEl) pctEl.textContent = '100%';
+  set('lpct', '100%');
   setTimeout(() => {
     el('loader').style.opacity = '0';
     el('app').style.opacity = '1';
     setTimeout(() => { el('loader').style.display = 'none'; }, 500);
   }, 300);
 }
-setTimeout(showApp, 12000);
+setTimeout(showApp, LOADER_MAX_MS);
 
 // ── WATER ANIMATION ──────────────────────────────────────────
 (function() {
@@ -750,63 +786,110 @@ setTimeout(showApp, 12000);
 })();
 
 // ── TIDE CHART ───────────────────────────────────────────────
+const fmtHour = (index) => {
+  const hh = Math.floor(index), mm = Math.round((index - hh) * 60);
+  return String(hh % 24).padStart(2, '0') + ':' + String(mm).padStart(2, '0');
+};
+
+function drawTideMeta(heights, curHour) {
+  const meta = el('tide-meta');
+  if (!meta) return;
+  const upcoming = tideExtremes(heights)
+    .filter(e => e.index >= curHour - 1)
+    .sort((a, b) => a.index - b.index);
+  const parts = [];
+  const hi = upcoming.find(e => e.type === 'high');
+  const lo = upcoming.find(e => e.type === 'low');
+  if (hi) parts.push('HI ' + fmtHour(hi.index) + ' ' + hi.height.toFixed(2) + 'm');
+  if (lo) parts.push('LO ' + fmtHour(lo.index) + ' ' + lo.height.toFixed(2) + 'm');
+  meta.textContent = parts.join('  •  ');
+}
+
+function drawTideGrid(ctx, W, H, pad, cW, cH) {
+  ctx.fillStyle = 'rgba(255,255,255,.04)';
+  for (let i = 0; i <= 4; i++) {
+    const y = Math.round(pad + (i / 4) * cH);
+    for (let x = 0; x < W; x += 4) ctx.fillRect(x, y, 2, 1);
+  }
+}
+
+// No-go shading (datum-invariant predicate, #9 D2) — hourly bands the pool's tide rules out.
+function drawNoGoShading(ctx, heights, pad, cW, cH, curHour) {
+  const mode = (currentPool && currentPool.natural) ? tideMode(currentPool) : 'none';
+  if (mode === 'none') return;
+  ctx.fillStyle = 'rgba(255,48,96,.07)';
+  for (let h = 0; h < 24; h++) {
+    if (tideState(heights, h + 0.5, mode).favourable === false) {
+      ctx.fillRect(Math.round(pad + (h / 24) * cW), pad, Math.round(cW / 24) + 1, cH);
+    }
+  }
+}
+
+function drawCurrentHour(ctx, curHour, pad, cW, cH) {
+  ctx.fillStyle = 'rgba(0,229,255,.10)';
+  ctx.fillRect(Math.round(pad + (curHour / 24) * cW), pad, Math.max(3, (1 / 24) * cW), cH);
+}
+
+function tidePoints(heights, pad, cW, cH) {
+  const mn = Math.min(...heights) - 0.1, mx = Math.max(...heights) + 0.1;
+  const rng = mx - mn;
+  return heights.map((v, i) => ({
+    x: Math.round(pad + (i / 24) * cW),
+    y: Math.round(pad + ((1 - (v - mn) / rng)) * cH),
+  }));
+}
+
+// Dotted water fill beneath the curve, brightening towards the surface.
+function drawTideFill(ctx, pts, H, pad) {
+  for (let i = 0; i < pts.length - 1; i++) {
+    const { x: x1, y: y1 } = pts[i], { x: x2, y: y2 } = pts[i + 1];
+    for (let x = x1; x < x2; x += 2) {
+      const f = (x - x1) / (x2 - x1);
+      const y = Math.round(y1 + f * (y2 - y1));
+      const d = H - pad - y;
+      for (let dy = 0; dy < d; dy += 2) {
+        const t = dy / d;
+        ctx.fillStyle = `rgba(${10 + Math.floor(t * 20)},${20 + Math.floor(t * 35)},${55 + Math.floor(t * 65)},${0.55 - t * 0.35})`;
+        ctx.fillRect(x, y + dy, 2, 2);
+      }
+    }
+  }
+}
+
+function drawTideLine(ctx, pts) {
+  ctx.fillStyle = '#00e5ff';
+  for (let i = 0; i < pts.length - 1; i++) {
+    ctx.fillRect(pts[i].x, pts[i].y, 3, 3);
+    const dx = pts[i + 1].x - pts[i].x, dy = pts[i + 1].y - pts[i].y;
+    const steps = Math.max(Math.abs(dx), Math.abs(dy));
+    for (let s = 0; s < steps; s++) {
+      ctx.fillRect(Math.round(pts[i].x + (dx / steps) * s), Math.round(pts[i].y + (dy / steps) * s), 2, 2);
+    }
+  }
+}
+
 function drawTide(curHour) {
-  const canvas = el('tide-canvas'); if (!canvas) return;
+  const canvas = el('tide-canvas');
+  if (!canvas) return;
   const tide = (lastSnapshot && lastSnapshot.tide) || { curve: TIDES, src: 'MODEL' };
-  const tideHeights = tide.curve, tideSrc = tide.src;
-  const title = el('tide-title');
-  if (title) title.textContent = '24H TIDE FORECAST — ' + currentPool.suburb.toUpperCase() + ' [' + tideSrc + ']';
+  const { curve: heights, src } = tide;
+  set('tide-title', '24H TIDE FORECAST — ' + currentPool.suburb.toUpperCase() + ' [' + src + ']');
+
   const W = Math.max(canvas.offsetWidth || 600, 300) * (window.devicePixelRatio || 1);
   const H = 150;
   canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = '#0A141E'; ctx.fillRect(0, 0, W, H);
-  // Next high/low extremes + datum-aware caption.
-  const meta = el('tide-meta');
-  if (meta) {
-    const ex = tideExtremes(tideHeights).filter(e => e.index >= curHour - 1)
-                .sort((a,b) => a.index - b.index);
-    const fmt = (i) => { const hh = Math.floor(i), mm = Math.round((i - hh) * 60);
-      return String(hh % 24).padStart(2,'0') + ':' + String(mm).padStart(2,'0'); };
-    const hi = ex.find(e => e.type === 'high');
-    const lo = ex.find(e => e.type === 'low');
-    const parts = [];
-    if (hi) parts.push('HI ' + fmt(hi.index) + ' ' + hi.height.toFixed(2) + 'm');
-    if (lo) parts.push('LO ' + fmt(lo.index) + ' ' + lo.height.toFixed(2) + 'm');
-    meta.textContent = parts.join('  •  ');
-  }
-  const mn = Math.min(...tideHeights)-0.1, mx = Math.max(...tideHeights)+0.1, rng = mx-mn;
-  const pad = 20, cW = W-pad*2, cH = H-pad*2;
-  for (let i=0;i<=4;i++){const y=pad+(i/4)*cH;for(let x=0;x<W;x+=4){ctx.fillStyle='rgba(255,255,255,.04)';ctx.fillRect(x,Math.round(y),2,1);}}
-  // No-go shading (datum-invariant predicate, #9 D2) — unfavourable hours per the pool's tide mode.
-  const shadeMode = (currentPool && currentPool.natural) ? tideMode(currentPool) : 'none';
-  if (shadeMode !== 'none') {
-    ctx.fillStyle = 'rgba(255,48,96,.07)';
-    for (let h=0; h<=23; h++) {
-      if (tideState(tideHeights, h + 0.5, shadeMode).favourable === false) {
-        ctx.fillRect(Math.round(pad + (h/24)*cW), pad, Math.round(cW/24) + 1, cH);
-      }
-    }
-  }
-  ctx.fillStyle='rgba(0,229,255,.10)';
-  ctx.fillRect(Math.round(pad+(curHour/24)*cW),pad,Math.max(3,(1/24)*cW),cH);
-  const pts = tideHeights.map((v,i)=>({x:Math.round(pad+(i/24)*cW),y:Math.round(pad+((1-(v-mn)/rng))*cH)}));
-  for(let i=0;i<pts.length-1;i++){
-    const x1=pts[i].x,x2=pts[i+1].x,y1=pts[i].y,y2=pts[i+1].y;
-    for(let x=x1;x<x2;x+=2){
-      const f=(x-x1)/(x2-x1),y=Math.round(y1+f*(y2-y1)),d=H-pad-y;
-      for(let dy=0;dy<d;dy+=2){
-        ctx.fillStyle=`rgba(${10+Math.floor(dy/d*20)},${20+Math.floor(dy/d*35)},${55+Math.floor(dy/d*65)},${0.55-(dy/d)*0.35})`;
-        ctx.fillRect(x,y+dy,2,2);
-      }
-    }
-  }
-  ctx.fillStyle='#00e5ff';
-  for(let i=0;i<pts.length-1;i++){
-    ctx.fillRect(pts[i].x,pts[i].y,3,3);
-    const dx=pts[i+1].x-pts[i].x,dy=pts[i+1].y-pts[i].y,steps=Math.max(Math.abs(dx),Math.abs(dy));
-    for(let s=0;s<steps;s++) ctx.fillRect(Math.round(pts[i].x+(dx/steps)*s),Math.round(pts[i].y+(dy/steps)*s),2,2);
-  }
+
+  const pad = 20, cW = W - pad * 2, cH = H - pad * 2;
+  drawTideMeta(heights, curHour);
+  drawTideGrid(ctx, W, H, pad, cW, cH);
+  drawNoGoShading(ctx, heights, pad, cW, cH, curHour);
+  drawCurrentHour(ctx, curHour, pad, cW, cH);
+
+  const pts = tidePoints(heights, pad, cW, cH);
+  drawTideFill(ctx, pts, H, pad);
+  drawTideLine(ctx, pts);
 }
 
 const VERDICTS = {
@@ -824,22 +907,25 @@ const VERDICTS = {
   epic_natural:["{pool} at low tide and glassy? You've earned this one.","THIS is why you hiked to {pool}. Conditions are perfect.","The rock gods have aligned. {pool} is magic right now.","Low swell, right tide. {pool} is exactly what it was carved for."],
 };
 function getVerdict(n) {
-  const atBondi  = currentPool && currentPool.id === 'bondi-icebergs';
+  const atBondi   = currentPool && currentPool.id === 'bondi-icebergs';
   const isNatural = currentPool && currentPool.natural;
   let k;
-  if (n <= 12 && isNatural && currentPool.swellLimit) k = 'nope_swell';
-  else if (n <= 28 && isNatural && tideMode(currentPool) !== 'none') k = 'nope_tide';
-  else if (n >= 85 && isNatural) k = 'epic_natural';
-  else k = n>=85?'epic':n>=70?'great':n>=55?(atBondi?'ok_bondi':'ok'):n>=40?'meh':'nope';
+  if (n <= SWELL_DANGER_SCORE && isNatural && currentPool.swellLimit) k = 'nope_swell';
+  else if (n <= TIDE_NOPE_SCORE && isNatural && tideMode(currentPool) !== 'none') k = 'nope_tide';
+  else if (n >= EPIC_MIN && isNatural) k = 'epic_natural';
+  else if (n >= EPIC_MIN)   k = 'epic';
+  else if (n >= GREAT_MIN)  k = 'great';
+  else if (n >= DECENT_MIN) k = atBondi ? 'ok_bondi' : 'ok';
+  else if (n >= MEH_MIN)    k = 'meh';
+  else                      k = 'nope';
   const p = VERDICTS[k];
-  const v = p[Math.floor(Math.random()*p.length)];
-  return v.replace(/{pool}/g, currentPool ? currentPool.name : 'The pool');
+  return p[Math.floor(Math.random() * p.length)].replace(/{pool}/g, currentPool ? currentPool.name : 'The pool');
 }
 
 // ── FALLBACK ─────────────────────────────────────────────────
 function makeFallback() {
-  const syd = new Date(new Date().toLocaleString('en-US',{timeZone: currentPool.timezone}));
-  const warm = syd.getMonth()>=10||syd.getMonth()<=3;
+  const syd = poolNow();
+  const warm = syd.getMonth() >= 10 || syd.getMonth() <= 3;
   const r = Math.random;
   return normaliseSnapshot({
     h:syd.getHours(), syd, src:'seasonal estimate', live:false,
@@ -850,32 +936,34 @@ function makeFallback() {
 }
 
 // ── FETCH (Open-Meteo — no API key, no Claude, direct JSON) ──
+// Day-aligned to pool timezone: index i = pool-local hour of day (same shape as TIDES).
+// Falls back to the Sydney model per hour so the curve is always 25 finite points.
+function buildLiveTide(seaTides) {
+  if (seaTides.length < 25) return null;
+  return Array.from({ length: 25 }, (_, i) => (isNum(seaTides[i]) ? seaTides[i] : TIDES[i]));
+}
+
+function buildDailyForecast(wd, md) {
+  return (wd.time || []).map((_, i) => ({
+    at:      wd.temperature_2m_max?.[i]          ?? null,
+    wind:    wd.wind_speed_10m_max?.[i]          ?? null,
+    windDir: wd.wind_direction_10m_dominant?.[i] ?? null,
+    cc:      wd.cloud_cover_mean?.[i]            ?? null,
+    uvRaw:   wd.uv_index_max?.[i]                ?? null,
+    wh:      md.wave_height_max?.[i]             ?? null,
+  }));
+}
+
 async function fetchWeather() {
   const { w, m } = getUrls(currentPool);
-  const syd = new Date(new Date().toLocaleString('en-US', { timeZone: currentPool.timezone }));
-  const h   = syd.getHours();
+  const syd = poolNow();
+  const h = syd.getHours();
   const [wRes, mRes] = await Promise.all([fetch(w), fetch(m)]);
   if (!wRes.ok || !mRes.ok) throw new Error('Open-Meteo ' + wRes.status + '/' + mRes.status);
   const [wData, mData] = await Promise.all([wRes.json(), mRes.json()]);
+
   const seaTemps = mData.hourly?.sea_surface_temperature || [];
-  const seaTides = mData.hourly?.sea_level_height_msl || [];
-  // Day-aligned to pool timezone: index i = pool-local hour of day (same shape as TIDES).
-  const liveTide = seaTides.length >= 25
-    ? Array.from({ length: 25 }, (_, i) => {
-        const v = seaTides[i];
-        return (typeof v === 'number' && isFinite(v)) ? v : TIDES[i];
-      })
-    : null;
-  const wd = wData.daily || {};
-  const md = mData.daily  || {};
-  const days = (wd.time || []).map((_, i) => ({
-    at:      wd.temperature_2m_max?.[i]             ?? null,
-    wind:    wd.wind_speed_10m_max?.[i]             ?? null,
-    windDir: wd.wind_direction_10m_dominant?.[i]    ?? null,
-    cc:      wd.cloud_cover_mean?.[i]               ?? null,
-    uvRaw:   wd.uv_index_max?.[i]                   ?? null,
-    wh:      md.wave_height_max?.[i]                ?? null,
-  }));
+  const liveTide = buildLiveTide(mData.hourly?.sea_level_height_msl || []);
   return normaliseSnapshot({
     h, syd, src: 'Open-Meteo (live)', live: true,
     at:      wData.current.temperature_2m,
@@ -887,8 +975,8 @@ async function fetchWeather() {
     wh:      mData.current.wave_height,
     wp:      mData.current.wave_period,
     st:      seaTemps[h] ?? seaTemps[0] ?? 20,
-    days,
-    tide: { curve: liveTide, src: liveTide ? 'LIVE' : 'MODEL' },
+    days:    buildDailyForecast(wData.daily || {}, mData.daily || {}),
+    tide:    { curve: liveTide, src: liveTide ? 'LIVE' : 'MODEL' },
   });
 }
 
@@ -896,41 +984,49 @@ async function fetchWeather() {
 function loadCache() { return weatherCache.read(currentPool ? currentPool.id : null); }
 
 // ── 7-DAY OUTLOOK ────────────────────────────────────────────
-function buildOutlook(d) {
-  const syd   = d.syd instanceof Date ? d.syd : new Date(d.syd);
-  const month = syd.getMonth();
-  const days  = [];
-  for (let i = 0; i < 7; i++) {
-    const date = new Date(syd);
-    date.setDate(date.getDate() + i);
-    const real = d.days && d.days[i];
-    let dayD;
-    if (real && real.at != null && real.wind != null) {
-      // Real Open-Meteo daily forecast data
-      dayD = {
+// Deterministic day-to-day variation when no real daily forecast exists.
+function seededEstimate(d, date, dayIndex) {
+  const seed  = (date.getDate() * 17 + date.getMonth() * 31) % 100 / 100;
+  const seed2 = ((date.getDate() + dayIndex) * 13 + 41) % 100 / 100;
+  return {
+    h: 8,
+    at: d.at + (seed - 0.5) * 4,
+    cc: Math.max(0, Math.min(100, d.cc + (seed2 - 0.5) * 40)),
+    wind: Math.max(3, d.wind + (seed - 0.5) * 12),
+    windDir: (d.windDir + (seed2 - 0.5) * 60 + 360) % 360,
+    wh: Math.max(0.2, d.wh + (seed - 0.5) * 0.6),
+    wp: d.wp,
+    st: d.st + (seed2 - 0.3) * 1.5,
+  };
+}
+
+function buildOutlookDay(d, date, dayIndex, month) {
+  const real = d.days && d.days[dayIndex];
+  const isReal = real && real.at != null && real.wind != null;
+  const dayD = isReal
+    ? {
         h: 8, at: real.at, cc: real.cc ?? d.cc,
         wind: real.wind, windDir: real.windDir ?? d.windDir,
         wh: Math.max(0.1, real.wh ?? d.wh), wp: d.wp, st: d.st,
-      };
-    } else {
-      // Seeded estimate from current conditions (fallback)
-      const seed  = (date.getDate() * 17 + date.getMonth() * 31) % 100 / 100;
-      const seed2 = ((date.getDate()+7) * 13 + 41) % 100 / 100;
-      dayD = {
-        h: 8, at: d.at + (seed-0.5)*4,
-        cc: Math.max(0, Math.min(100, d.cc + (seed2-0.5)*40)),
-        wind: Math.max(3, d.wind + (seed-0.5)*12),
-        windDir: (d.windDir + (seed2-0.5)*60 + 360) % 360,
-        wh: Math.max(0.2, d.wh + (seed-0.5)*0.6), wp: d.wp,
-        st: d.st + (seed2-0.3)*1.5,
-      };
-    }
-    const {total} = calcScore(dayD);
-    const g = getGrade(total);
-    const uvDay = (real && real.uvRaw != null) ? real.uvRaw : calcUV(12, month, dayD.cc);
-    days.push({date, total, g, at: dayD.at, wh: dayD.wh, wind: dayD.wind, uvDay, i});
-  }
-  return days;
+      }
+    : seededEstimate(d, date, dayIndex);
+  const { total } = calcScore(dayD);
+  return {
+    date, total, g: getGrade(total),
+    at: dayD.at, wh: dayD.wh, wind: dayD.wind,
+    uvDay: (isReal && real.uvRaw != null) ? real.uvRaw : calcUV(12, month, dayD.cc),
+    i: dayIndex,
+  };
+}
+
+function buildOutlook(d) {
+  const syd = d.syd instanceof Date ? d.syd : new Date(d.syd);
+  const month = syd.getMonth();
+  return Array.from({ length: OUTLOOK_DAYS }, (_, i) => {
+    const date = new Date(syd);
+    date.setDate(date.getDate() + i);
+    return buildOutlookDay(d, date, i, month);
+  });
 }
 
 // ── RENDER ───────────────────────────────────────────────────
@@ -943,179 +1039,211 @@ function animNum(elem, to, dur) {
   })(performance.now());
 }
 
-function render(d) {
-  lastSnapshot = d;
-  let {total, bk} = calcScore(d);
-
-  // Natural pool overrides — swell and tide penalties (datum-invariant predicate, #9)
-  if (currentPool && currentPool.natural) {
-    const swellDanger = currentPool.swellLimit && d.wh > currentPool.swellLimit;
-    const mode = tideMode(currentPool);
-    const fav  = mode !== 'none' && tideState(d.tide.curve, d.h, mode).favourable;
-    const tideBad = mode !== 'none' && fav === false;
-    if (swellDanger) total = Math.min(total, 12);
-    else if (tideBad) total = Math.min(total, 28);
-  }
-
-  const g   = getGrade(total);
-  const v   = getVerdict(total);
-  const syd = d.syd instanceof Date ? d.syd : new Date(d.syd);
-  const month = syd.getMonth();
-
-  // UV — use fetched value if available, else calculate
-  const uv = (d.uvRaw != null && d.uvRaw > 0) ? d.uvRaw : calcUV(d.h, month, d.cc);
-  const uvInfo = uvLabel(uv);
-  const bb     = bluebottleRisk(d.windDir, d.wind, currentPool.onshoreWind, d.gust);
-
-  // Alert banners
-  const uvAlert    = el('alert-uv');
-  const bbAlert    = el('alert-bb');
-  const tideAlert  = el('alert-tide');
-  const swellAlert = el('alert-swell');
-  if (uvAlert) { uvAlert.className = 'alert-banner alert-uv' + (uv >= 6 ? ' show' : ''); }
-  if (bbAlert) { bbAlert.className = 'alert-banner alert-bb' + (bb.risk >= 2 ? ' show' : ''); }
-  if (tideAlert) {
-    const showTide = currentPool && currentPool.natural && currentPool.tideDependent &&
-                     !(currentPool.swellLimit && d.wh > currentPool.swellLimit);
-    tideAlert.className = 'alert-banner alert-tide' + (showTide ? ' show' : '');
-    if (showTide && currentPool.tideDependent === 'high') {
-      tideAlert.textContent = '⏱ NATURAL POOL — This one fills from the surf. Best near high tide.';
-    } else if (showTide) {
-      tideAlert.textContent = '⏱ NATURAL POOL — Best within 2hrs of low tide. Check tide times before heading out.';
-    }
-  }
-  if (swellAlert) {
-    const showSwell = currentPool && currentPool.natural && currentPool.swellLimit && d.wh > currentPool.swellLimit;
-    swellAlert.className = 'alert-banner alert-swell' + (showSwell ? ' show' : '');
-  }
-
-  // Score panel
-  set('semo', g.e);
-  el('snum').style.color = g.col;
-  animNum(el('snum'), total, 900);
-  el('sgrd').innerHTML = '<span class="'+g.c+'">'+g.g+'</span>';
-  set('svrd', v);
-
-  // Fun meter
-  const fm = el('fm'); fm.innerHTML = '';
-  const lit = Math.round((total/100)*20);
-  for(let i=0;i<20;i++){
-    const b = document.createElement('div');
-    b.className = 'fb'+(i<lit?' lit':'');
-    if(i<lit){b.style.background=g.col;b.style.animationDelay=(i*.05)+'s';}
-    fm.appendChild(b);
-  }
-  set('fl','▓'.repeat(lit)+'░'.repeat(20-lit)+' '+total+'/100');
-
-  // Tiles
-  set('tile-wh', d.wh.toFixed(1)+'m');
-  set('tile-ws', Math.round(d.wind)+'km/h');
-  set('tile-at', d.at.toFixed(1)+'°C');
-  set('tile-st', d.st.toFixed(1)+'°C');
-  set('tile-cc', Math.round(d.cc)+'%');
-  set('tile-wd', dirLabel(d.windDir));
-  set('tile-lt', syd.toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'}));
-  set('tile-wp', d.wp.toFixed(0)+'s');
-
-  // UV tile
-  const uvEl = el('tile-uv');
-  if (uvEl) { uvEl.textContent = uv.toFixed(1)+' '+uvInfo.text; uvEl.className = 'wvl '+uvInfo.cls; }
-  const uvWrap = el('tile-uv-wrap');
-  if (uvWrap) uvWrap.className = 'wtile' + (uv>=6?' warn':'');
-
-  // Bluebottle tile
-  const bbEl = el('tile-bb');
-  if (bbEl) { bbEl.textContent = bb.text; bbEl.className = 'wvl '+bb.cls; }
-  const bbWrap = el('tile-bb-wrap');
-  if (bbWrap) bbWrap.className = 'wtile' + (bb.risk>=2?' warn':'');
-
-  // Badge
-  const badge = el('dbdg');
-  if (badge) {
-    const isStale = !d.live && String(d.src || '').includes('stale');
-    badge.textContent = d.live ? 'LIVE' : (isStale ? 'STALE' : 'SIMULATED');
-    badge.className = 'dbdg ' + (d.live ? 'live' : 'sim');
-  }
-
-  // Stat bars
-  const sb = el('statbars'); sb.innerHTML = '';
-  bk.forEach(item=>{
-    const pct=(item.s/item.m)*100;
-    const col=pct>70?'var(--gn)':pct>40?'var(--yw)':'var(--rd)';
-    const row=document.createElement('div'); row.className='srow';
-    row.innerHTML='<div class="slb2">'+item.label+'</div>'+
-      '<div class="strack"><div class="sfill" style="width:'+pct+'%;background:'+col+'"></div></div>'+
-      '<div class="sval">'+item.s+'/'+item.m+'</div>';
-    sb.appendChild(row);
-  });
-
-  // Tide chart
-  drawTide(d.h);
-
-  // Swim windows
-  const con = el('swim-windows'); con.innerHTML = '';
-  const wins = [];
-  const tc = d.tide.curve;
-  const windowMode = tideMode(currentPool);
-  for(let h=6;h<=20;h++){
-    const {total:t}=calcScore({...d,h});
-    const td=tc[h]||1;
-    // Shared predicate (#9 D2): bonus when the pool's tide is favourable, penalty when not.
-    let adj = 0;
-    if (windowMode !== 'none') {
-      const f = tideState(tc, h, windowMode).favourable;
-      adj = f === true ? 5 : (f === false ? -3 : 0);
-    }
-    wins.push({h,s:Math.min(100,Math.max(0,t+adj)),td});
-  }
-  wins.sort((a,b)=>b.s-a.s).slice(0,5).sort((a,b)=>a.h-b.h).forEach(w=>{
-    const gr=getGrade(w.s);
-    const ampm=w.h<12?'AM':'PM', h12=w.h>12?w.h-12:(w.h||12);
-    const tdir=(tc[w.h+1]||w.td)>w.td?'↑RISING':'↓FALLING';
-    const div=document.createElement('div'); div.className='sw';
-    div.innerHTML='<div class="stm">'+String(h12).padStart(2,'0')+':00 '+ampm+'</div>'+
-      '<div class="sdsc">TIDE '+w.td.toFixed(2)+'m '+tdir+' | SCORE '+w.s+'/100</div>'+
-      '<div class="sbdg '+gr.c+'" style="border-color:'+gr.col+'">'+gr.e+'<br>'+w.s+'</div>';
-    con.appendChild(div);
-  });
-
-  // 7-day outlook
-  const og = el('outlook-grid'); og.innerHTML = '';
-  buildOutlook(d).forEach(day=>{
-    const isToday = day.i===0;
-    const dayName = isToday?'TODAY':day.date.toLocaleDateString('en-AU',{weekday:'short'}).toUpperCase();
-    const dateStr = day.date.toLocaleDateString('en-AU',{day:'2-digit',month:'short'}).toUpperCase();
-    const div = document.createElement('div');
-    div.className = 'outlook-day';
-    div.style.borderColor = isToday ? 'var(--cy)' : 'rgba(255,255,255,.1)';
-    div.innerHTML =
-      '<div class="outlook-date">'+dayName+'<br>'+dateStr+'</div>'+
-      '<div class="outlook-score '+day.g.c+'" style="font-size:20px">'+day.total+'</div>'+
-      '<div class="outlook-grade '+day.g.c+'">'+day.g.e+' '+day.g.g+'</div>'+
-      '<div class="outlook-detail">'+
-        day.at.toFixed(0)+'°C | '+day.wh.toFixed(1)+'m<br>'+
-        'WIND '+Math.round(day.wind)+'km/h<br>'+
-        'UV '+day.uvDay.toFixed(0)+' '+uvLabel(day.uvDay).text+
-      '</div>';
-    og.appendChild(div);
-  });
-
-  // Timestamp
-  set('ts','LAST UPDATE: '+
-    syd.toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'})+' AEST  |  '+
-    syd.toLocaleDateString('en-AU',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase()+
-    '  |  '+(d.src||'').toUpperCase());
+// Swell and tide penalties for natural pools (datum-invariant predicate, #9).
+function applyNaturalPoolPenalties(d, total) {
+  if (!currentPool || !currentPool.natural) return total;
+  if (currentPool.swellLimit && d.wh > currentPool.swellLimit) return Math.min(total, SWELL_DANGER_SCORE);
+  const mode = tideMode(currentPool);
+  const unfavourable = mode !== 'none' && tideState(d.tide.curve, d.h, mode).favourable === false;
+  return unfavourable ? Math.min(total, TIDE_NOPE_SCORE) : total;
 }
 
+function toggleBanner(id, show) {
+  const banner = el(id);
+  if (banner) banner.className = 'alert-banner ' + id + (show ? ' show' : '');
+}
+
+function updateAlerts(d, uv, bb) {
+  const isNatural = currentPool && currentPool.natural;
+  const swellDanger = !!(isNatural && currentPool.swellLimit && d.wh > currentPool.swellLimit);
+  const tideAlert = el('alert-tide');
+
+  toggleBanner('alert-uv', uv >= UV_ALERT_THRESHOLD);
+  toggleBanner('alert-bb', bb.risk >= BB_WARN_RISK);
+  toggleBanner('alert-swell', swellDanger);
+  toggleBanner('alert-tide', !!(isNatural && currentPool.tideDependent && !swellDanger));
+
+  if (!tideAlert || !currentPool.tideDependent) return;
+  tideAlert.textContent = currentPool.tideDependent === 'high'
+    ? '⏱ NATURAL POOL — This one fills from the surf. Best near high tide.'
+    : '⏱ NATURAL POOL — Best within 2hrs of low tide. Check tide times before heading out.';
+}
+
+function renderScorePanel(total, grade, verdict) {
+  set('semo', grade.e);
+  el('snum').style.color = grade.col;
+  animNum(el('snum'), total, 900);
+  el('sgrd').innerHTML = '<span class="' + grade.c + '">' + grade.g + '</span>';
+  set('svrd', verdict);
+}
+
+function renderFunMeter(total, colour) {
+  const meter = el('fm');
+  if (!meter) return;
+  meter.innerHTML = '';
+  const lit = Math.round((total / 100) * FUN_METER_SEGMENTS);
+  for (let i = 0; i < FUN_METER_SEGMENTS; i++) {
+    const block = document.createElement('div');
+    block.className = 'fb' + (i < lit ? ' lit' : '');
+    if (i < lit) {
+      block.style.background = colour;
+      block.style.animationDelay = (i * 0.05) + 's';
+    }
+    meter.appendChild(block);
+  }
+  set('fl', '▓'.repeat(lit) + '░'.repeat(FUN_METER_SEGMENTS - lit) + ' ' + total + '/100');
+}
+
+function renderWeatherTiles(d, uv, uvInfo, bb, syd) {
+  set('tile-wh', d.wh.toFixed(1) + 'm');
+  set('tile-ws', Math.round(d.wind) + 'km/h');
+  set('tile-at', d.at.toFixed(1) + '°C');
+  set('tile-st', d.st.toFixed(1) + '°C');
+  set('tile-cc', Math.round(d.cc) + '%');
+  set('tile-wd', dirLabel(d.windDir));
+  set('tile-lt', syd.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' }));
+  set('tile-wp', d.wp.toFixed(0) + 's');
+
+  const uvEl = el('tile-uv');
+  if (uvEl) { uvEl.textContent = uv.toFixed(1) + ' ' + uvInfo.text; uvEl.className = 'wvl ' + uvInfo.cls; }
+  const uvWrap = el('tile-uv-wrap');
+  if (uvWrap) uvWrap.className = 'wtile' + (uv >= UV_ALERT_THRESHOLD ? ' warn' : '');
+
+  const bbEl = el('tile-bb');
+  if (bbEl) { bbEl.textContent = bb.text; bbEl.className = 'wvl ' + bb.cls; }
+  const bbWrap = el('tile-bb-wrap');
+  if (bbWrap) bbWrap.className = 'wtile' + (bb.risk >= BB_WARN_RISK ? ' warn' : '');
+}
+
+function renderBadge(d) {
+  const badge = el('dbdg');
+  if (!badge) return;
+  const isStale = !d.live && String(d.src || '').includes('stale');
+  badge.textContent = d.live ? 'LIVE' : (isStale ? 'STALE' : 'SIMULATED');
+  badge.className = 'dbdg ' + (d.live ? 'live' : 'sim');
+}
+
+function renderStatBars(breakdown) {
+  const container = el('statbars');
+  if (!container) return;
+  container.innerHTML = '';
+  breakdown.forEach(item => {
+    const pct = (item.s / item.m) * 100;
+    const col = pct > 70 ? 'var(--gn)' : pct > 40 ? 'var(--yw)' : 'var(--rd)';
+    const row = document.createElement('div');
+    row.className = 'srow';
+    row.innerHTML = '<div class="slb2">' + item.label + '</div>' +
+      '<div class="strack"><div class="sfill" style="width:' + pct + '%;background:' + col + '"></div></div>' +
+      '<div class="sval">' + item.s + '/' + item.m + '</div>';
+    container.appendChild(row);
+  });
+}
+
+// Hourly scores 06:00-20:00, adjusted by the pool's tide predicate (#9 D2).
+function rankSwimWindows(d) {
+  const mode = tideMode(currentPool);
+  const curve = d.tide.curve;
+  const wins = [];
+  for (let h = SWIM_WINDOW_FROM; h <= SWIM_WINDOW_TO; h++) {
+    const { total } = calcScore({ ...d, h });
+    let adj = 0;
+    if (mode !== 'none') {
+      const favourable = tideState(curve, h, mode).favourable;
+      adj = favourable === true ? TIDE_BONUS : (favourable === false ? TIDE_PENALTY : 0);
+    }
+    wins.push({ h, s: Math.min(100, Math.max(0, total + adj)), td: curve[h] || 1 });
+  }
+  return wins.sort((a, b) => b.s - a.s).slice(0, SWIM_WINDOW_COUNT).sort((a, b) => a.h - b.h);
+}
+
+function formatWindowHour(h) {
+  const ampm = h < 12 ? 'AM' : 'PM';
+  const h12 = h > 12 ? h - 12 : (h || 12);
+  return String(h12).padStart(2, '0') + ':00 ' + ampm;
+}
+
+function renderSwimWindows(d) {
+  const container = el('swim-windows');
+  if (!container) return;
+  container.innerHTML = '';
+  const curve = d.tide.curve;
+  rankSwimWindows(d).forEach(w => {
+    const grade = getGrade(w.s);
+    const tdir = (curve[w.h + 1] || w.td) > w.td ? '↑RISING' : '↓FALLING';
+    const div = document.createElement('div');
+    div.className = 'sw';
+    div.innerHTML = '<div class="stm">' + formatWindowHour(w.h) + '</div>' +
+      '<div class="sdsc">TIDE ' + w.td.toFixed(2) + 'm ' + tdir + ' | SCORE ' + w.s + '/100</div>' +
+      '<div class="sbdg ' + grade.c + '" style="border-color:' + grade.col + '">' + grade.e + '<br>' + w.s + '</div>';
+    container.appendChild(div);
+  });
+}
+
+function outlookDayHtml(day) {
+  const dayName = day.i === 0 ? 'TODAY' : day.date.toLocaleDateString('en-AU', { weekday: 'short' }).toUpperCase();
+  const dateStr = day.date.toLocaleDateString('en-AU', { day: '2-digit', month: 'short' }).toUpperCase();
+  return '<div class="outlook-date">' + dayName + '<br>' + dateStr + '</div>' +
+    '<div class="outlook-score ' + day.g.c + '" style="font-size:20px">' + day.total + '</div>' +
+    '<div class="outlook-grade ' + day.g.c + '">' + day.g.e + ' ' + day.g.g + '</div>' +
+    '<div class="outlook-detail">' +
+      day.at.toFixed(0) + '°C | ' + day.wh.toFixed(1) + 'm<br>' +
+      'WIND ' + Math.round(day.wind) + 'km/h<br>' +
+      'UV ' + day.uvDay.toFixed(0) + ' ' + uvLabel(day.uvDay).text +
+    '</div>';
+}
+
+function renderOutlook(d) {
+  const grid = el('outlook-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  buildOutlook(d).forEach(day => {
+    const div = document.createElement('div');
+    div.className = 'outlook-day';
+    div.style.borderColor = day.i === 0 ? 'var(--cy)' : 'rgba(255,255,255,.1)';
+    div.innerHTML = outlookDayHtml(day);
+    grid.appendChild(div);
+  });
+}
+
+function renderTimestamp(d, syd) {
+  set('ts', 'LAST UPDATE: ' +
+    syd.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' }) + ' AEST  |  ' +
+    syd.toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase() +
+    '  |  ' + (d.src || '').toUpperCase());
+}
+
+function render(d) {
+  lastSnapshot = d;
+  const { total: rawTotal, bk } = calcScore(d);
+  const total = applyNaturalPoolPenalties(d, rawTotal);
+  const grade = getGrade(total);
+
+  const syd = d.syd instanceof Date ? d.syd : new Date(d.syd);
+  const month = syd.getMonth();
+  const uv = (d.uvRaw != null && d.uvRaw > 0) ? d.uvRaw : calcUV(d.h, month, d.cc);
+  const uvInfo = uvLabel(uv);
+  const bb = bluebottleRisk(d.windDir, d.wind, currentPool.onshoreWind, d.gust);
+
+  updateAlerts(d, uv, bb);
+  renderScorePanel(total, grade, getVerdict(total));
+  renderFunMeter(total, grade.col);
+  renderWeatherTiles(d, uv, uvInfo, bb, syd);
+  renderBadge(d);
+  renderStatBars(bk);
+  drawTide(d.h);
+  renderSwimWindows(d);
+  renderOutlook(d);
+  renderTimestamp(d, syd);
+}
 // ── TABS ─────────────────────────────────────────────────────
 function showTab(btn,id){
   document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll('.tpanel').forEach(p=>p.classList.remove('active'));
   btn.classList.add('active');
   el(id).classList.add('active');
-  if(id==='tab-tide')   drawTide(new Date(new Date().toLocaleString('en-US',{timeZone: currentPool.timezone})).getHours());
-  if(id==='tab-map')    drawMap();
-  if(id==='tab-legend') renderLegend();
+  if (id === 'tab-tide')   drawTide(poolNow().getHours());
+  if (id === 'tab-map')    drawMap();
+  if (id === 'tab-legend') renderLegend();
 }
 
 // ── POOL MAP ─────────────────────────────────────────────────
@@ -1137,33 +1265,38 @@ function mkIcon(active) {
   });
 }
 
-function drawMap() {
-  if (typeof L === 'undefined') return;
-  const container = el('map-container');
-  if (!container) return;
+function createMap(containerId, { attribution = false } = {}) {
+  const map = L.map(containerId, { zoomControl: true, attributionControl: false });
+  L.tileLayer(MAP_TILE_URL, { maxZoom: MAP_MAX_ZOOM }).addTo(map);
+  if (attribution) L.control.attribution({ prefix: attribution, position: 'bottomright' }).addTo(map);
+  setTimeout(() => map.invalidateSize(), 100);
+  return map;
+}
 
-  if (!_map) {
-    _map = L.map('map-container', { zoomControl: true, attributionControl: false });
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      maxZoom: 18,
-    }).addTo(_map);
-    L.control.attribution({ prefix: '© OSM © CARTO', position: 'bottomright' }).addTo(_map);
-  }
-
-  _markers.forEach(m => m.remove());
-  _markers = [];
-
+// markerMap, when given, is populated with id -> marker (used for hover linking).
+function addPoolMarkers(map, markers, markerMap, onClick) {
   POOLS.forEach(p => {
     const active = currentPool && p.id === currentPool.id;
-    const m = L.marker([p.lat, p.lon], { icon: mkIcon(active) })
-      .addTo(_map)
+    const marker = L.marker([p.lat, p.lon], { icon: mkIcon(active) })
+      .addTo(map)
       .bindTooltip(p.name + '<br>' + p.suburb + ' ' + p.state, {
         direction: 'top', className: 'oracle-tip', offset: [0, -4],
       })
-      .on('click', () => { hideSearch(); selectPool(p); });
-    if (active) m.openTooltip();
-    _markers.push(m);
+      .on('click', () => onClick(p));
+    if (active) marker.openTooltip();
+    markers.push(marker);
+    if (markerMap) markerMap.set(p.id, marker);
   });
+}
+
+function drawMap() {
+  if (typeof L === 'undefined') return;
+  if (!el('map-container')) return;
+
+  if (!_map) _map = createMap('map-container', { attribution: '© OSM © CARTO' });
+  _markers.forEach(m => m.remove());
+  _markers = [];
+  addPoolMarkers(_map, _markers, null, p => { hideSearch(); selectPool(p); });
 
   if (currentPool) _map.setView([currentPool.lat, currentPool.lon], 12, { animate: true });
   setTimeout(() => _map && _map.invalidateSize(), 100);
@@ -1171,30 +1304,13 @@ function drawMap() {
 
 function drawSearchMap() {
   if (typeof L === 'undefined') return;
-  const container = el('search-map-container');
-  if (!container) return;
+  if (!el('search-map-container')) return;
 
-  if (!_sMap) {
-    _sMap = L.map('search-map-container', { zoomControl: true, attributionControl: false });
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 18 }).addTo(_sMap);
-  }
-
+  if (!_sMap) _sMap = createMap('search-map-container');
   _sMarkers.forEach(m => m.remove());
   _sMarkers = [];
   _sMarkerMap = new Map();
-
-  POOLS.forEach(p => {
-    const active = currentPool && p.id === currentPool.id;
-    const m = L.marker([p.lat, p.lon], { icon: mkIcon(active) })
-      .addTo(_sMap)
-      .bindTooltip(p.name + '<br>' + p.suburb + ' ' + p.state, {
-        direction: 'top', className: 'oracle-tip', offset: [0, -4],
-      })
-      .on('click', () => selectPool(p));
-    if (active) m.openTooltip();
-    _sMarkers.push(m);
-    _sMarkerMap.set(p.id, m);
-  });
+  addPoolMarkers(_sMap, _sMarkers, _sMarkerMap, selectPool);
 
   const zoom = currentPool ? 10 : 6;
   const centre = currentPool ? [currentPool.lat, currentPool.lon] : [-33.87, 151.21];
@@ -1239,46 +1355,59 @@ if ('serviceWorker' in navigator) {
 
 // ── MAIN ─────────────────────────────────────────────────────
 let busy = false;
-async function doRefresh() {
-  if (busy) return;
-  busy = true;
+
+const isBusy = () => busy;
+function setBusy(state) {
+  busy = state;
   const btn = el('rbtn');
-  if (btn) { btn.disabled=true; btn.textContent='⏳ FETCHING...'; }
-  setMsg('FETCHING LIVE WEATHER...');
-  let d, fetchOk = false;
+  if (btn) { btn.disabled = state; btn.textContent = state ? '⏳ FETCHING...' : '▶ REFRESH DATA ◀'; }
+}
+
+// Live fetch, then one retry, then the simulated estimate.
+async function loadWeather() {
   try {
-    d = await fetchWeather();
-    fetchOk = true;
-  } catch(err) {
+    return { data: await fetchWeather(), live: true };
+  } catch (err) {
     log('Primary fetch failed:', err.message);
     setMsg('RETRYING...');
+    await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
     try {
-      await new Promise(r => setTimeout(r, 2000));
-      d = await fetchWeather();
-      fetchOk = true;
-    } catch(err2) {
+      return { data: await fetchWeather(), live: true };
+    } catch (err2) {
       log('Retry failed:', err2.message);
-      d = makeFallback();
+      return { data: makeFallback(), live: false };
     }
   }
-  if (fetchOk) {
-    const d2 = { ...d, syd: d.syd instanceof Date ? d.syd.toISOString() : d.syd };
-    weatherCache.write(currentPool ? currentPool.id : null, d2);
+}
+
+// Degraded tier (wayfinder #4): serve the stale cached snapshot, flagged, before
+// falling back to the simulated seasonal estimate.
+function applyStaleFallback(d) {
+  const stale = weatherCache.read(currentPool ? currentPool.id : null, { allowStale: true });
+  if (!stale) return d;
+  log('Serving stale cache after fetch failure');
+  return { ...stale, src: stale.src + ' — cached (stale)', live: false };
+}
+
+async function doRefresh() {
+  if (isBusy()) return;
+  setBusy(true);
+  setMsg('FETCHING LIVE WEATHER...');
+
+  const { data, live } = await loadWeather();
+  let snapshot = data;
+  if (live) {
+    const stored = { ...data, syd: data.syd instanceof Date ? data.syd.toISOString() : data.syd };
+    weatherCache.write(currentPool ? currentPool.id : null, stored);
   } else {
-    // Degraded tier (wayfinder #4): serve the stale cached snapshot, flagged, before
-    // falling back to the simulated seasonal estimate.
-    const stale = weatherCache.read(currentPool ? currentPool.id : null, { allowStale: true });
-    if (stale) {
-      d = { ...stale, src: stale.src + ' — cached (stale)', live: false };
-      log('Serving stale cache after fetch failure');
-    }
+    snapshot = applyStaleFallback(data);
   }
+
   const errBanner = el('alert-err');
-  if (errBanner) errBanner.className = 'alert-banner alert-err' + (fetchOk ? '' : ' show');
-  render(d);
+  if (errBanner) errBanner.className = 'alert-banner alert-err' + (live ? '' : ' show');
+  render(snapshot);
   showApp();
-  if (btn) { btn.disabled=false; btn.textContent='▶ REFRESH DATA ◀'; }
-  busy = false;
+  setBusy(false);
 }
 
 // ── WINDOW EXPORTS (module scope — required for inline onclick) ──
@@ -1302,10 +1431,8 @@ function init() {
   const cached = loadCache();
   if (cached) { render(cached); showApp(); }
   doRefresh();
-  setInterval(doRefresh, 15*60*1000);
-  window.addEventListener('resize', () => {
-    drawTide(new Date(new Date().toLocaleString('en-US',{timeZone: currentPool.timezone})).getHours());
-  });
+  setInterval(doRefresh, REFRESH_INTERVAL_MS);
+  window.addEventListener('resize', () => drawTide(poolNow().getHours()));
 }
 if (document.readyState === 'loading') {
   window.addEventListener('DOMContentLoaded', init);

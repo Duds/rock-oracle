@@ -6,6 +6,23 @@ Tiered task list for the project. Context notes aid session continuity.
 
 ## NOW (Active)
 
+- **Production Hardening** (SCOPED 2026-10-11, not started)
+  > Gate: `docs/production-hardening.md` (38 checks across runtime, publish
+  > surface, headers, offline, vendored deps, interface architecture, a11y,
+  > error reporting, test gate). Decisions: ADR-0001..0010. Glossary: `CONTEXT.md`.
+  > Absorbs wayfinder #5 (view-model extraction) — hardening and the UI refactor
+  > are one workstream.
+  > Found while scoping: Node 20 EOL 2026-04-30 (three versions in play); two
+  > competing deploy paths and unprotected `main`; `sw.js` precache lists 2 of 4
+  > modules so offline cannot work; `publish = "."` serving `TASKS.md`, `AGENTS.md`
+  > and `docs/` publicly; zero ARIA/role/alt; 5-7px type floor; no client error
+  > reporting.
+  > Next: create GitHub issues under map #1, then implement in checklist order.
+
+---
+
+## DONE (recent)
+
 - **Design System Token Layer** (COMPLETE)
   > Last: Implemented spacing, alpha, semantic tokens. All CSS values token-based.
   > Next: done. Spacing token adoption complete 2026-09-07.
